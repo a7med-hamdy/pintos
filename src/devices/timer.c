@@ -41,6 +41,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&blocked_threads);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -178,6 +179,12 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  struct list_elem* iter = list_begin(&blocked_threads);
+  while(iter != list_end(&blocked_threads))
+  {
+  // struct thread* t = list_entry(iter, struct thread,  elem);
+  iter = list_next(iter);
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -254,5 +261,5 @@ real_time_delay (int64_t num, int32_t denom)
 bool comparetor(const struct list_elem* a, const struct list_elem* b, void*aux){
   const int64_t a_ticks =(list_entry(a, struct thread, elem))->ticks;
   const int64_t b_ticks =(list_entry(a, struct thread, elem))->ticks;
-  return a_ticks > b_ticks;
+  return a_ticks < b_ticks;
 }
