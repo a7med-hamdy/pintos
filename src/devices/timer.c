@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <list.h>
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -23,6 +24,9 @@ static int64_t ticks;
 /* Number of loops per timer tick.
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
+
+/* Blocked threads list*/
+struct list blocked_threads;
 
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
@@ -92,8 +96,10 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  if (timer_elapsed (start) < ticks){
+    list_insert_ordered(&blocked_threads, &thread_current()->elem, &comparetor, NULL);
+    thread_block();
+  }
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -243,4 +249,10 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+/*helper function to sort blocked threads by ticks*/
+bool comparetor(const struct list_elem* a, const struct list_elem* b, void*aux){
+  const int64_t a_ticks =(list_entry(a, struct thread, elem))->ticks;
+  const int64_t b_ticks =(list_entry(a, struct thread, elem))->ticks;
+  return a_ticks > b_ticks;
 }
