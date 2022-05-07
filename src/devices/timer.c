@@ -179,11 +179,25 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  int64_t start = timer_ticks ();
   struct list_elem* iter = list_begin(&blocked_threads);
   while(iter != list_end(&blocked_threads))
   {
-  // struct thread* t = list_entry(iter, struct thread,  elem);
-  iter = list_next(iter);
+    struct thread* t = list_entry(iter, struct thread,  timerelem);
+    if(timer_elapsed(start) >=  t->ticks)
+    {
+      thread_unblock(t);
+      // remove the thread from the list
+      struct list_elem* temp = iter;
+      iter = list_next(iter);
+      list_remove(t);
+      continue;
+    }
+    else
+    {
+      break;
+    }
+    iter = list_next(iter);
   }
 }
 
