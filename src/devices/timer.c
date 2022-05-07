@@ -190,7 +190,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
       // remove the thread from the list
       struct list_elem* temp = iter;
       iter = list_next(iter);
-      list_remove(t);
+      list_remove(temp);
       continue;
     }
     else
