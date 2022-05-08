@@ -481,7 +481,17 @@ alloc_frame (struct thread *t, size_t size)
   t->stack -= size;
   return t->stack;
 }
-
+/*
+  Comparator functions
+*/
+bool 
+list_less_comp(const struct list_elem* a, const struct list_elem* b,
+               void* aux UNUSED)
+{
+  const int a_member = (list_entry(a, struct thread, elem)->priority);
+  const int b_member = (list_entry(b, struct thread, elem)->priority);
+  return a_member < b_member;
+}
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
@@ -493,7 +503,9 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    //list_less_func* f = &thread_less_func;
+    return list_entry(list_max(&ready_list, &list_less_comp, NULL), struct thread, elem);
+    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -559,10 +571,14 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-
+  list_remove(&next->elem);
   if (cur != next)
+  {
     prev = switch_threads (cur, next);
+  }
+
   thread_schedule_tail (prev);
+  //printf("\ncurrent priority = %d,prev priority = %d\n, ",cur->priority, next->priority);
 }
 
 /* Returns a tid to use for a new thread. */
