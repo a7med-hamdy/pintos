@@ -7,6 +7,7 @@
 #include "threads/interrupt.h"
 #include "threads/synch.h"
 #include "threads/thread.h"
+#include <list.h>
   
 /* See [8254] for hardware details of the 8254 timer chip. */
 
@@ -24,11 +25,15 @@ static int64_t ticks;
    Initialized by timer_calibrate(). */
 static unsigned loops_per_tick;
 
+/* Blocked threads list*/
+struct list blocked_threads;
+
 static intr_handler_func timer_interrupt;
 static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
+bool comparator(const struct list_elem* a, const struct list_elem* b, void*aux);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -37,6 +42,7 @@ timer_init (void)
 {
   pit_configure_channel (0, 2, TIMER_FREQ);
   intr_register_ext (0x20, timer_interrupt, "8254 Timer");
+  list_init(&blocked_threads);
 }
 
 /* Calibrates loops_per_tick, used to implement brief delays. */
@@ -89,11 +95,30 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
-  while (timer_elapsed (start) < ticks) 
-    thread_yield ();
+  struct thread *t = thread_current();
+  
+  t->ticks = ticks;
+  t->start = start;
+  list_insert_ordered(&blocked_threads, &t->timerelem, &comparator, NULL);
+  /*
+  struct list_elem* iter = list_begin(&blocked_threads);
+  while(iter != list_end(&blocked_threads))
+  {
+    struct thread* t = list_entry(iter, struct thread,  timerelem);
+    printf("%lld ",t->ticks- timer_elapsed(t->start));
+    iter = list_next(iter);
+
+  }
+  printf("\n");
+  */
+  intr_disable();
+  thread_block();
+  intr_enable();
+  
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -172,6 +197,25 @@ timer_interrupt (struct intr_frame *args UNUSED)
 {
   ticks++;
   thread_tick ();
+  struct list_elem* iter = list_begin(&blocked_threads);
+  while(iter != list_end(&blocked_threads))
+  {
+    struct thread* t = list_entry(iter, struct thread,  timerelem);
+    if(timer_elapsed(t->start) >=  t->ticks)
+    {
+      thread_unblock(t);
+      // remove the thread from the list
+      struct list_elem* temp = iter;
+      iter = list_next(iter);
+      list_remove(temp);
+      continue;
+    }
+    else
+    {
+      break;
+    }
+    iter = list_next(iter);
+  }
 }
 
 /* Returns true if LOOPS iterations waits for more than one timer
@@ -243,4 +287,11 @@ real_time_delay (int64_t num, int32_t denom)
      the possibility of overflow. */
   ASSERT (denom % 1000 == 0);
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
+}
+/*helper function to sort blocked threads by ticks*/
+bool comparator(const struct list_elem* a, const struct list_elem* b, void* aux)
+{
+  const struct thread* t1 =(list_entry(a, struct thread, timerelem));
+  const struct thread* t2 =(list_entry(b, struct thread, timerelem));
+  return (t1->ticks - timer_elapsed(t1->start)) < (t2->ticks- timer_elapsed(t2->start));
 }

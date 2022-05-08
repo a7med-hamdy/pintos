@@ -1,2 +1,4 @@
-.vscode/settings.json
+.vscode
 src/utils/pintos-gdb
+*.o
+*.result
