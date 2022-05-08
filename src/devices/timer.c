@@ -33,7 +33,7 @@ static bool too_many_loops (unsigned loops);
 static void busy_wait (int64_t loops);
 static void real_time_sleep (int64_t num, int32_t denom);
 static void real_time_delay (int64_t num, int32_t denom);
-bool comparetor(const struct list_elem* a, const struct list_elem* b, void*aux);
+bool comparator(const struct list_elem* a, const struct list_elem* b, void*aux);
 
 /* Sets up the timer to interrupt TIMER_FREQ times per second,
    and registers the corresponding interrupt. */
@@ -103,7 +103,7 @@ timer_sleep (int64_t ticks)
     struct thread *t = thread_current();
     t->ticks = ticks;
     t->start = start;
-    list_insert_ordered(&blocked_threads, &t->timerelem, &comparetor, NULL);
+    list_insert_ordered(&blocked_threads, &t->timerelem, &comparator, NULL);
     printf("\nadded %d\n", t->ticks);
     printf("list after addition:\n");
     struct list_elem* iter = list_begin(&blocked_threads);
@@ -299,9 +299,9 @@ real_time_delay (int64_t num, int32_t denom)
   busy_wait (loops_per_tick * num / 1000 * TIMER_FREQ / (denom / 1000)); 
 }
 /*helper function to sort blocked threads by ticks*/
-bool comparetor(const struct list_elem* a, const struct list_elem* b, void* aux)
+bool comparator(const struct list_elem* a, const struct list_elem* b, void* aux)
 {
-  const int64_t a_ticks =(list_entry(a, struct thread, elem))->ticks;
-  const int64_t b_ticks =(list_entry(b, struct thread, elem))->ticks;
+  const int64_t a_ticks =(list_entry(a, struct thread, timerelem))->ticks;
+  const int64_t b_ticks =(list_entry(b, struct thread, timerelem))->ticks;
   return a_ticks < b_ticks;
 }
