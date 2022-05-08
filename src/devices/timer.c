@@ -95,16 +95,30 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
+  
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
   struct thread *t = thread_current();
+  
   t->ticks = ticks;
   t->start = start;
   list_insert_ordered(&blocked_threads, &t->timerelem, &comparator, NULL);
+  /*
+  struct list_elem* iter = list_begin(&blocked_threads);
+  while(iter != list_end(&blocked_threads))
+  {
+    struct thread* t = list_entry(iter, struct thread,  timerelem);
+    printf("%lld ",t->ticks- timer_elapsed(t->start));
+    iter = list_next(iter);
+
+  }
+  printf("\n");
+  */
   intr_disable();
   thread_block();
   intr_enable();
+  
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -277,7 +291,7 @@ real_time_delay (int64_t num, int32_t denom)
 /*helper function to sort blocked threads by ticks*/
 bool comparator(const struct list_elem* a, const struct list_elem* b, void* aux)
 {
-  const int64_t a_ticks =(list_entry(a, struct thread, timerelem))->ticks;
-  const int64_t b_ticks =(list_entry(b, struct thread, timerelem))->ticks;
-  return a_ticks < b_ticks;
+  const struct thread* t1 =(list_entry(a, struct thread, timerelem));
+  const struct thread* t2 =(list_entry(b, struct thread, timerelem));
+  return (t1->ticks - timer_elapsed(t1->start)) < (t2->ticks- timer_elapsed(t2->start));
 }
