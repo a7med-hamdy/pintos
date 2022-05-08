@@ -99,11 +99,33 @@ timer_sleep (int64_t ticks)
 
   ASSERT (intr_get_level () == INTR_ON);
   if (timer_elapsed (start) < ticks){
+    intr_disable();
     struct thread *t = thread_current();
     t->ticks = ticks;
     t->start = start;
     list_insert_ordered(&blocked_threads, &t->timerelem, &comparetor, NULL);
-    intr_disable();
+    printf("\nadded %d\n", t->ticks);
+    printf("list after addition:\n");
+    struct list_elem* iter = list_begin(&blocked_threads);
+    while(iter != list_end(&blocked_threads))
+    {
+      struct thread* t = list_entry(iter, struct thread,  timerelem);
+      printf("%d ", t->ticks);
+      // if(timer_elapsed(t->start) >=  t->ticks)
+      // {
+      //   thread_unblock(t);
+      //   // remove the thread from the list
+      //   struct list_elem* temp = iter;
+      //   iter = list_next(iter);
+      //   list_remove(temp);
+      //   continue;
+      // }
+      // else
+      // {
+      //   //break;
+      // }
+      iter = list_next(iter);
+    }
     thread_block();
     intr_enable();
   }
@@ -189,19 +211,19 @@ timer_interrupt (struct intr_frame *args UNUSED)
   while(iter != list_end(&blocked_threads))
   {
     struct thread* t = list_entry(iter, struct thread,  timerelem);
-    if(timer_elapsed(t->start) >=  t->ticks)
-    {
-      thread_unblock(t);
-      // remove the thread from the list
-      struct list_elem* temp = iter;
-      iter = list_next(iter);
-      list_remove(temp);
-      continue;
-    }
-    else
-    {
-      // break;
-    }
+    // if(timer_elapsed(t->start) >=  t->ticks)
+    // {
+    //   thread_unblock(t);
+    //   // remove the thread from the list
+    //   struct list_elem* temp = iter;
+    //   iter = list_next(iter);
+    //   list_remove(temp);
+    //   continue;
+    // }
+    // else
+    // {
+    //   //break;
+    // }
     iter = list_next(iter);
   }
 }
