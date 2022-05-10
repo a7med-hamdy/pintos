@@ -200,7 +200,10 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-
+  ////////////////////////////
+  if(thread_current()->priority < t->priority)
+     thread_yield();
+  
   return tid;
 }
 
@@ -217,6 +220,7 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
+  
   schedule ();
 }
 
@@ -238,6 +242,7 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
+  list_sort(&ready_list, &list_less_comp, NULL);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -307,8 +312,10 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  if (cur != idle_thread) 
+if (cur != idle_thread){
     list_push_back (&ready_list, &cur->elem);
+    list_sort(&ready_list,list_less_comp,NULL);
+}
   cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
@@ -335,14 +342,32 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  ////////////////////////////////////////////////////////
+  if(list_empty(&thread_current()->locks) || new_priority > thread_current()->priority)
+      thread_current ()->priority = new_priority;
+  thread_current()->base_priority = new_priority;
+
+  enum intr_level old_level = intr_disable();
+  if(!list_empty(&ready_list))
+  {
+  struct thread * t = list_entry(list_front(&ready_list)
+                      , struct thread, elem);
+    if(new_priority <= t->priority )
+    {
+      thread_current()->base_priority = new_priority;
+      thread_yield();
+    }
+  }
+  intr_set_level(old_level);
+  //////////////////////////////////////////////////////////// i am here
 }
 
 /* Returns the current thread's priority. */
 int
 thread_get_priority (void) 
 {
-  return thread_current ()->priority;
+    return thread_current()->priority;
+  
 }
 
 /* Sets the current thread's nice value to NICE. */
@@ -456,16 +481,19 @@ init_thread (struct thread *t, const char *name, int priority)
   ASSERT (t != NULL);
   ASSERT (PRI_MIN <= priority && priority <= PRI_MAX);
   ASSERT (name != NULL);
-
   memset (t, 0, sizeof *t);
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-
+  t->waiting_lock=NULL;
+  t->base_priority = priority;
+  t->donations = 8;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
+    list_init(&t->locks);
+
   intr_set_level (old_level);
 }
 
@@ -490,7 +518,8 @@ list_less_comp(const struct list_elem* a, const struct list_elem* b,
 {
   const int a_member = (list_entry(a, struct thread, elem)->priority);
   const int b_member = (list_entry(b, struct thread, elem)->priority);
-  return a_member < b_member;
+  
+  return a_member > b_member;
 }
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
@@ -503,9 +532,8 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    //list_less_func* f = &thread_less_func;
-    return list_entry(list_max(&ready_list, &list_less_comp, NULL), struct thread, elem);
-    //return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    //return list_entry(list_max(&ready_list, &list_less_comp, NULL), struct thread, elem);
+    return list_entry (list_pop_front (&ready_list), struct thread, elem);
 }
 
 /* Completes a thread switch by activating the new thread's page
@@ -571,14 +599,13 @@ schedule (void)
   ASSERT (intr_get_level () == INTR_OFF);
   ASSERT (cur->status != THREAD_RUNNING);
   ASSERT (is_thread (next));
-  list_remove(&next->elem);
+ 
   if (cur != next)
   {
     prev = switch_threads (cur, next);
   }
 
   thread_schedule_tail (prev);
-  //printf("\ncurrent priority = %d,prev priority = %d\n, ",cur->priority, next->priority);
 }
 
 /* Returns a tid to use for a new thread. */
