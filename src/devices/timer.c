@@ -104,17 +104,6 @@ timer_sleep (int64_t ticks)
   t->ticks = ticks;
   t->start = start;
   list_insert_ordered(&blocked_threads, &t->timerelem, &comparator, NULL);
-  /*
-  struct list_elem* iter = list_begin(&blocked_threads);
-  while(iter != list_end(&blocked_threads))
-  {
-    struct thread* t = list_entry(iter, struct thread,  timerelem);
-    printf("%lld ",t->ticks- timer_elapsed(t->start));
-    iter = list_next(iter);
-
-  }
-  printf("\n");
-  */
   intr_disable();
   thread_block();
   intr_enable();
@@ -218,7 +207,7 @@ timer_interrupt (struct intr_frame *args UNUSED)
   }
 }
 
-/* Returns true if LOOPS iterations waits for more than one timer
+/* Returns true if LOOPS iterations waits for more8 than one timer
    tick, otherwise false. */
 static bool
 too_many_loops (unsigned loops) 
