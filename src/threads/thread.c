@@ -200,10 +200,11 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  ////////////////////////////
-  if(thread_current()->priority < t->priority)
-     thread_yield();
-  
+  /////////////////////////////////////////////////
+  if(thread_current()->priority < t->priority)//if the new priority is higher
+                                                // than the newly created thread's priority
+     thread_yield();//yield the CPU
+  //////////////////////////////////////////////////
   return tid;
 }
 
@@ -242,7 +243,9 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
-  list_sort(&ready_list, &list_less_comp, NULL);
+  ///////////////////////////////////////////////////////////////
+  list_sort(&ready_list, &list_less_comp, NULL);//sort the thread list
+  //////////////////////////////////////////////////////////////
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -314,7 +317,9 @@ thread_yield (void)
   old_level = intr_disable ();
 if (cur != idle_thread){
     list_push_back (&ready_list, &cur->elem);
-    list_sort(&ready_list,list_less_comp,NULL);
+    //////////////////////////////////////////////////////////////////////////
+    list_sort(&ready_list,  list_less_comp, NULL);//sort the threads ready list
+    /////////////////////////////////////////////////////////////////////////// 
 }
   cur->status = THREAD_READY;
   schedule ();
@@ -342,24 +347,35 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  ///setting priority is different when mlfqs scheduler is turned on
+  if(!thread_mlfqs){
   ////////////////////////////////////////////////////////
+  //if the current thread is not holding any locks or its getting a higher priority
   if(list_empty(&thread_current()->locks) || new_priority > thread_current()->priority)
-      thread_current ()->priority = new_priority;
-  thread_current()->base_priority = new_priority;
+      thread_current ()->priority = new_priority;//update its priority
+  thread_current()->base_priority = new_priority;// update its original priority by default
 
+  //disable interrupts until this code is done
   enum intr_level old_level = intr_disable();
-  if(!list_empty(&ready_list))
+  if(!list_empty(&ready_list))//if the ready list is not empty then we have to think
+                                //about whether to yield or not
   {
-  struct thread * t = list_entry(list_front(&ready_list)
-                      , struct thread, elem);
-    if(new_priority <= t->priority )
+  struct thread * t = list_entry(list_front(&ready_list) //get the supposedly highest priority
+                      , struct thread, elem);             // in the ready list
+    if(new_priority <= t->priority )  //if its priority is highter 
     {
-      thread_current()->base_priority = new_priority;
-      thread_yield();
+      thread_yield();//yield the CPU 
     }
   }
+  //re-enable the interrupts
   intr_set_level(old_level);
   //////////////////////////////////////////////////////////// i am here
+  }
+  else{
+    /*mlfqs scheduler's job */
+    thread_current()->priority = new_priority;
+    thread_current()->base_priority = new_priority;
+  }
 }
 
 /* Returns the current thread's priority. */
@@ -374,6 +390,7 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
+  ASSERT(thread_mlfqs);// this is our ortional assert remove it noramlly
   /* Not yet implemented. */
 }
 
@@ -381,24 +398,27 @@ thread_set_nice (int nice UNUSED)
 int
 thread_get_nice (void) 
 {
+  ASSERT(thread_mlfqs);// this is our ortional assert remove it noramlly
+  return thread_current()->nice;
   /* Not yet implemented. */
-  return 0;
 }
 
 /* Returns 100 times the system load average. */
 int
 thread_get_load_avg (void) 
-{
+{  
+  ASSERT(thread_mlfqs);// this is our ortional assert remove it noramlly
+  return thread_current()->load_avg;
   /* Not yet implemented. */
-  return 0;
 }
 
 /* Returns 100 times the current thread's recent_cpu value. */
 int
 thread_get_recent_cpu (void) 
 {
+    ASSERT(thread_mlfqs);// this is our ortional assert remove it noramlly
+    return thread_current()->recent_cpu;
   /* Not yet implemented. */
-  return 0;
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -487,13 +507,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
+  //////////////////////////////////////////////
   t->waiting_lock=NULL;
   t->base_priority = priority;
-  t->donations = 8;
+  list_init(&t->locks);
+  ////////////////////////////////////////////////
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
-    list_init(&t->locks);
-
   intr_set_level (old_level);
 }
 
@@ -509,8 +529,12 @@ alloc_frame (struct thread *t, size_t size)
   t->stack -= size;
   return t->stack;
 }
+
+///////////////////////////////////////////////////////////////////////////////
 /*
-  Comparator functions
+  list_less_func function that compares between the priorities two given
+  threads to get which one to run passed to list_sort() in the thread_yield()
+  & passed to sema_up() in the synch.c file
 */
 bool 
 list_less_comp(const struct list_elem* a, const struct list_elem* b,
@@ -521,6 +545,9 @@ list_less_comp(const struct list_elem* a, const struct list_elem* b,
   
   return a_member > b_member;
 }
+///////////////////////////////////////////////////////////////////////////////
+
+
 /* Chooses and returns the next thread to be scheduled.  Should
    return a thread from the run queue, unless the run queue is
    empty.  (If the running thread can continue running, then it
@@ -532,9 +559,13 @@ next_thread_to_run (void)
   if (list_empty (&ready_list))
     return idle_thread;
   else
-    //return list_entry(list_max(&ready_list, &list_less_comp, NULL), struct thread, elem);
+  ////////////////////////////////////////////////////////////////////////////////
+  //here the list is already descendingly sorted so we can just get the first element
     return list_entry (list_pop_front (&ready_list), struct thread, elem);
+    //////////////////////////////////////////////////////////////////////////////
 }
+
+
 
 /* Completes a thread switch by activating the new thread's page
    tables, and, if the previous thread is dying, destroying it.

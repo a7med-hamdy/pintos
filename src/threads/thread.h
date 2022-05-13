@@ -83,17 +83,25 @@ typedef int tid_t;
 struct thread
   {
     /* Owned by thread.c. */
-    struct list locks;                 /* List of locks the thread is holding. */
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
     char name[16];                      /* Name (for debugging purposes). */
     uint8_t *stack;                     /* Saved stack pointer. */
+    /////////////////////////////////////////////////////////////////////////
+    /*Used in priority scheduler & priority donations variables */
     int priority;                       /* Priority. */
+    int  base_priority;                 /*  Orignial priority of thread */
+    struct lock *waiting_lock;          /* A pointer to the lock the thread is waiting on. */
+    struct list locks;                  /* List of locks the thread is holding. has elem_thread 
+                                          in synch.h as its list element */
+    ///////////////////////////////////////////////////////////////////////////////
     struct list_elem allelem;           /* List element for all threads list. */
-    struct list_elem timerelem; 
-    int  base_priority;
-    int donations;
-    struct lock *waiting_lock;         /* The lock the thread is waiting on. */
+    struct list_elem timerelem;         /* List element for timer */
+/////////////////////////////////////////////////////////////////////////////////////
+    int nice;                           /* How nice the thread can yield the thread */
+    int recent_cpu;                     /* How recent was this thread on the CPU */
+    int load_avg;                       /* Load average CPU */
+    ///////////////////////////////////////////////////////////////////////////////////
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
     int64_t ticks;
