@@ -129,7 +129,7 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
-
+  // printf("running thread: %s\n", t->name);
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -145,7 +145,7 @@ thread_tick (void)
     //increment the running thread if not the idle one
     if(t != idle_thread)
     {
-      add_real_int(t->recent_cpu,1);
+      t->recent_cpu = add_real_int(t->recent_cpu,1);
     }
     //when the timer ticks reach a multiple of a second
     if(timer_ticks() % TIMER_FREQ == 0)
@@ -153,7 +153,7 @@ thread_tick (void)
       struct list_elem* iter = list_begin(&all_list);
       // ready threads size
       int n = list_size(&ready_list);
-      // add the running thread to the count it is not the idle thread
+      // add the running thread to the count if it is not the idle thread
       if(t != idle_thread)
       {
         n++;
@@ -164,11 +164,16 @@ thread_tick (void)
       while(iter != list_end(&all_list))
       {
         struct thread* thread = list_entry(iter, struct thread,  allelem);
+        if(thread == idle_thread)
+        {
+          iter = list_next(iter);
+          continue;
+        }
         //coefficient first
         struct real x = divide_real_real(multiply_real_int(load_avg,2),add_real_int(multiply_real_int(load_avg,2),1));
         // update recent_cpu
         thread->recent_cpu = add_real_int(multiply_real_real(x,thread->recent_cpu),thread->nice);
-        printf("thread %d , recent_cpu: %d, priority: %d\n", thread->tid, real_to_int(thread->recent_cpu), thread->priority);
+        //printf("thread %s , recent_cpu: %d, priority: %d, avg: %d\n", thread->name, real_to_int(thread->recent_cpu), thread->priority, real_to_int(load_avg));
         iter = list_next(iter);
       }
     }
@@ -180,7 +185,21 @@ thread_tick (void)
       while(iter != list_end(&all_list))
       {
         struct thread* thread = list_entry(iter, struct thread,  allelem);
-        thread->priority = PRI_MAX - real_to_int(divide_real_int(thread->recent_cpu, 4)) - thread->nice*2;
+        if(thread == idle_thread)
+        {
+          iter = list_next(iter);
+          continue;
+        }
+        int p = PRI_MAX - real_to_int(divide_real_int(thread->recent_cpu, 4)) - thread->nice*2;
+        if(p < PRI_MIN)
+        {
+          p = PRI_MIN;
+        }
+        else if (p > PRI_MAX)
+        {
+          p = PRI_MAX;
+        }
+        thread->priority = p;
         // printf("thread %d , priority: %d\n", thread->tid, thread->priority);
         iter = list_next(iter);
       }
@@ -445,18 +464,26 @@ thread_set_nice (int nice UNUSED)
 {
   thread_current()->nice = nice;
   // re-calculate the priority
-  thread_current()->priority = PRI_MAX - real_to_int(divide_real_int(thread_current()->recent_cpu, 4)) - thread_current()->nice*2;
+  int p = PRI_MAX - real_to_int(divide_real_int(thread_current()->recent_cpu, 4)) - thread_current()->nice*2;
+  if(p < PRI_MIN)
+  {
+    p = PRI_MIN;
+  }
+  else if (p > PRI_MAX)
+  {
+    p = PRI_MAX;
+  }
+  thread_current()->priority = p;
   // printf("\nthread %d new priority: %d new nice: %d, recent_cpu: %d \n", thread_current()->tid, thread_current()->priority, thread_current()->nice, real_to_int(thread_current()->recent_cpu));
   // re-schedule
   intr_disable();
   // check if the thread doesn't have the highest priority
   if(list_size(&ready_list) > 0)
   {
-    struct list_elem* elem = list_front(&ready_list);
+    struct list_elem* elem = list_min(&ready_list,list_less_comp, NULL);
     struct thread* t = list_entry(elem, struct thread, allelem);
     if(t->priority > thread_current()->priority)
     {
-      printf("\n not the highest\n");
       thread_yield();
     }
   }
@@ -481,7 +508,7 @@ thread_get_load_avg (void)
 int
 thread_get_recent_cpu (void) 
 {
-    return real_to_int(multiply_real_int(thread_current()->recent_cpu, 100));
+  return real_to_int(multiply_real_int(thread_current()->recent_cpu, 100));
 }
 
 /* Idle thread.  Executes when no other thread is ready to run.
@@ -584,7 +611,16 @@ init_thread (struct thread *t, const char *name, int priority)
       t->recent_cpu = thread_current()->recent_cpu;
     }
     // set the new thread's priority
-    t->priority = PRI_MAX - real_to_int(divide_real_int(t->recent_cpu, 4)) - t->nice*2;
+    int p = PRI_MAX - real_to_int(divide_real_int(t->recent_cpu, 4)) - t->nice*2;
+    if(p < PRI_MIN)
+    {
+      p = PRI_MIN;
+    }
+    else if (p > PRI_MAX)
+    {
+      p = PRI_MAX;
+    }
+    t->priority = p;
   }
   else
   {
@@ -721,6 +757,7 @@ schedule (void)
   }
 
   thread_schedule_tail (prev);
+  //printf("thread prev=%d ,thread next=%d \n",next->name,cur->name);
 }
 
 /* Returns a tid to use for a new thread. */
