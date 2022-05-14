@@ -164,9 +164,11 @@ thread_tick (void)
       while(iter != list_end(&all_list))
       {
         struct thread* thread = list_entry(iter, struct thread,  allelem);
-        struct real x = multiply_real_int(load_avg,2);
+        //coefficient first
+        struct real x = divide_real_real(multiply_real_int(load_avg,2),add_real_int(multiply_real_int(load_avg,2),1));
         // update recent_cpu
-        thread->recent_cpu = add_real_int(multiply_real_real(divide_real_real(x, add_real_int(x,1)),thread->recent_cpu),thread->nice);
+        thread->recent_cpu = add_real_int(multiply_real_real(x,thread->recent_cpu),thread->nice);
+        printf("thread %d , recent_cpu: %d, priority: %d\n", thread->tid, real_to_int(thread->recent_cpu), thread->priority);
         iter = list_next(iter);
       }
     }
@@ -179,6 +181,7 @@ thread_tick (void)
       {
         struct thread* thread = list_entry(iter, struct thread,  allelem);
         thread->priority = PRI_MAX - real_to_int(divide_real_int(thread->recent_cpu, 4)) - thread->nice*2;
+        // printf("thread %d , priority: %d\n", thread->tid, thread->priority);
         iter = list_next(iter);
       }
     }
@@ -271,7 +274,7 @@ thread_block (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   thread_current ()->status = THREAD_BLOCKED;
-  
+
   schedule ();
 }
 
@@ -421,11 +424,11 @@ thread_set_priority (int new_priority)
   intr_set_level(old_level);
   //////////////////////////////////////////////////////////// i am here
   }
-  else{
-    /*mlfqs scheduler's job */
-    thread_current()->priority = new_priority;
-    thread_current()->base_priority = new_priority;
-  }
+  // else{
+  //   /*mlfqs scheduler's job */
+  //   thread_current()->priority = new_priority;
+  //   thread_current()->base_priority = new_priority;
+  // }
 }
 
 /* Returns the current thread's priority. */
@@ -440,12 +443,23 @@ thread_get_priority (void)
 void
 thread_set_nice (int nice UNUSED) 
 {
-  ASSERT(thread_mlfqs);// this is our ortional assert remove it noramlly
-  /* Not yet implemented. */
   thread_current()->nice = nice;
+  // re-calculate the priority
   thread_current()->priority = PRI_MAX - real_to_int(divide_real_int(thread_current()->recent_cpu, 4)) - thread_current()->nice*2;
+  // printf("\nthread %d new priority: %d new nice: %d, recent_cpu: %d \n", thread_current()->tid, thread_current()->priority, thread_current()->nice, real_to_int(thread_current()->recent_cpu));
+  // re-schedule
   intr_disable();
-  // schedule();
+  // check if the thread doesn't have the highest priority
+  if(list_size(&ready_list) > 0)
+  {
+    struct list_elem* elem = list_front(&ready_list);
+    struct thread* t = list_entry(elem, struct thread, allelem);
+    if(t->priority > thread_current()->priority)
+    {
+      printf("\n not the highest\n");
+      thread_yield();
+    }
+  }
   intr_enable();
 }
 

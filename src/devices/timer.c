@@ -99,12 +99,13 @@ timer_sleep (int64_t ticks)
   int64_t start = timer_ticks ();
 
   ASSERT (intr_get_level () == INTR_ON);
+
+  intr_disable();
   struct thread *t = thread_current();
   
   t->ticks = ticks;
   t->start = start;
   list_insert_ordered(&blocked_threads, &t->timerelem, &comparator, NULL);
-  intr_disable();
   thread_block();
   intr_enable();
   
