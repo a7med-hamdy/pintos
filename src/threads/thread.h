@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "fixed-point.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -23,7 +24,7 @@ typedef int tid_t;
 #define PRI_MIN 0                       /* Lowest priority. */
 #define PRI_DEFAULT 31                  /* Default priority. */
 #define PRI_MAX 63                      /* Highest priority. */
-#define F 16384 // 2^14
+
 
 /* A kernel thread or user process.
 
@@ -82,10 +83,6 @@ typedef int tid_t;
    ready state is on the run queue, whereas only a thread in the
    blocked state is on a semaphore wait list. */
 
-/* fixed point representation of integer*/
-struct real{
-    int val;
-};
 
 struct thread
   {
@@ -163,15 +160,5 @@ int thread_get_load_avg (void);
 bool list_less_comp(const struct list_elem* a, const struct list_elem* b,
                     void* aux UNUSED);
 
-struct real int_to_real(int n);
-int real_to_int(struct real x);
-struct real add_real_real(struct real x, struct real y);
-struct real add_real_int(struct real x, int n);
-struct real subtract_real_real(struct real x, struct real y);
-struct real subtract_real_int(struct real x, int n);
-struct real multiply_real_real(struct real x, struct real y);
-struct real multiply_real_int(struct real x, int n);
-struct real divide_real_real(struct real x, struct real y);
-struct real divide_real_int(struct real x, int n);
 
 #endif /* threads/thread.h */
