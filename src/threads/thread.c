@@ -316,7 +316,7 @@ thread_unblock (struct thread *t)
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
   ///////////////////////////////////////////////////////////////
-  list_sort(&ready_list, &list_less_comp, NULL);//sort the thread list
+  //list_sort(&ready_list, &list_less_comp, NULL);//sort the thread list
   //////////////////////////////////////////////////////////////
   t->status = THREAD_READY;
   intr_set_level (old_level);
@@ -390,7 +390,7 @@ thread_yield (void)
 if (cur != idle_thread){
     list_push_back (&ready_list, &cur->elem);
     //////////////////////////////////////////////////////////////////////////
-    list_sort(&ready_list,  list_less_comp, NULL);//sort the threads ready list
+    //list_sort(&ready_list,  list_less_comp, NULL);//sort the threads ready list
     /////////////////////////////////////////////////////////////////////////// 
 }
   cur->status = THREAD_READY;
@@ -432,8 +432,9 @@ thread_set_priority (int new_priority)
   if(!list_empty(&ready_list))//if the ready list is not empty then we have to think
                                 //about whether to yield or not
   {
-  struct thread * t = list_entry(list_front(&ready_list) //get the supposedly highest priority
-                      , struct thread, elem);             // in the ready list
+    //get the list element with highest priority in the ready list
+  struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
+  struct thread * t = list_entry(e, struct thread, elem);// get its thread 
     if(new_priority <= t->priority )  //if its priority is highter 
     {
       thread_yield();//yield the CPU 
@@ -653,8 +654,8 @@ alloc_frame (struct thread *t, size_t size)
 ///////////////////////////////////////////////////////////////////////////////
 /*
   list_less_func function that compares between the priorities two given
-  threads to get which one to run passed to list_sort() in the thread_yield()
-  & passed to sema_up() in the synch.c file
+  threads to get which one to run passed to list_min() in the thread_yield(),
+  set_nice(), set_priority() & passed to sema_up() in the synch.c file
 */
 bool 
 list_less_comp(const struct list_elem* a, const struct list_elem* b,
@@ -678,10 +679,14 @@ next_thread_to_run (void)
 {
   if (list_empty (&ready_list))
     return idle_thread;
-  else
+  else{
   ////////////////////////////////////////////////////////////////////////////////
-  //here the list is already descendingly sorted so we can just get the first element
-    return list_entry (list_pop_front (&ready_list), struct thread, elem);
+  //get the list element with highest priority in the ready list
+    struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
+    list_remove(e); //remove it from the ready list
+    struct thread * t = list_entry(e,struct thread, elem);//get its thread
+    return t;// return the found thread
+  }
     //////////////////////////////////////////////////////////////////////////////
 }
 

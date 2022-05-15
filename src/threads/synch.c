@@ -190,7 +190,7 @@ lock_init (struct lock *lock)
   ASSERT (lock != NULL);
   lock->holder = NULL;
   /////////////////////////////////
-  lock->max_prio = 0;// initial value for the priority is lowest 0
+  lock->max_prio = PRI_MIN;// initial value for the priority is lowest 0
   /////////////////////////////////
   sema_init (&lock->semaphore, 1);
 }
@@ -443,9 +443,15 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock_held_by_current_thread (lock));
   if (!list_empty (&cond->waiters)){
     /////////////////////////////////////////////////////////////////////////////////
-	    list_sort(&cond->waiters, list_less_compcond, NULL);// sort the list of waiters
+      /* pick the next list element highest semaphore element
+         who has the highest priority thread in their waiting list */
+      struct list_elem * e = list_min(&cond->waiters, &list_less_compcond,NULL);
+      // remove the element from the list
+      list_remove(e);
+      //get the semaphore element from the list element
+      struct semaphore_elem* s = list_entry(e,struct semaphore_elem, elem);
+      sema_up(&s->semaphore);//release the thread on this semaphore
       /////////////////////////////////////////////////////////////////////////////
-      sema_up (&list_entry (list_pop_front (&cond->waiters), struct semaphore_elem, elem)->semaphore);
   }
 }
 
