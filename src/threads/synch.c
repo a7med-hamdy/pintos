@@ -116,7 +116,8 @@ sema_up (struct semaphore *sema)
   if (!list_empty (&sema->waiters))
   {
     /////////////////////////////////////////////////////
-    struct list_elem *s = list_min(&sema->waiters, &list_less_comp, NULL);//get maximum of the waiters
+    //get maximum of the waiters
+    struct list_elem *s = list_min(&sema->waiters, &list_less_comp, NULL);
     list_remove(s);//remove the element from the list
      t = list_entry(s, struct thread, elem);//get the thread
     thread_unblock(t);// unblock it
@@ -197,9 +198,8 @@ lock_init (struct lock *lock)
 
 /*
   list_less_func used to compare between the maximum priority of 2 given
-  locks used in lock_release() to get the next priority value to be assigned to the
-  priority of the thread holding a number of locks
-*/
+  locks used in lock_release() to get the next priority value to be assigned 
+  to the priority of the thread holding a number of locks */
 bool 
 list_less_complocks(const struct list_elem* a, const struct list_elem* b,
                void* aux UNUSED)
@@ -227,12 +227,13 @@ lock_acquire (struct lock *lock)
   //////////////////////////////////////////////
   //if the holder has been determined and we are not working with
   // mlfqs scheduler
+  enum intr_level old_level = intr_disable();
   if(!thread_mlfqs && lock->holder != NULL)
   {
       // then the entering thread will wait on this lock
       thread_current()->waiting_lock = lock;
        //disable the interrupt to start the chaining process
-      enum intr_level old_level = intr_disable();
+    
       //start a pointer to the current lock
       struct lock *wait=lock;
       //start with a pointer to the current thread(the waiting one)
@@ -255,7 +256,7 @@ lock_acquire (struct lock *lock)
          wait=wait->holder->waiting_lock;
        }
      
-    intr_set_level(old_level);
+    
  //////////////////////////////////////
   }
 
@@ -264,15 +265,14 @@ lock_acquire (struct lock *lock)
   /*solution*/
   /* here the holder is determined */
   lock->holder = thread_current ();
+  intr_set_level(old_level);
   //if we are not working with the mlfqs scheduler 
   if(!thread_mlfqs){
   thread_current()->waiting_lock = NULL;
-  enum intr_level old_level = intr_disable();
   //the maximum priority of the lock is by default its holder's priority 
   lock->max_prio = lock->holder->priority;
   // push this lock into the holder's list of locks it its holding
   list_push_back(&lock->holder->locks,  &lock->elem_thread);
-  intr_set_level(old_level);
   }
   ////////////////////////////////////////////////////////
 
