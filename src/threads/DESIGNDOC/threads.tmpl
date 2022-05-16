@@ -208,11 +208,10 @@ Added to struct lock:
 >> how your implementation avoids it.  Can you use a lock to avoid
 >> this race?
     When setting a new priority the critical region picks the maximum thread to
-    compare it with the current thread to see if (with the new priority) it
-    should yield or not but the problem occures when setting a priority another
-    thread may also call thread_set_priority() and lowers its priority so it is
-    supposed to yield but before yielding the control goes back to the first 
-    thread and it yields 
+    compare it with the current (which at the moment had the highest priority thread)
+    to see if (with the new priority) it should yield but before yielding the control
+    switches to another thread where it can also yield so it yields to that of the previous
+    which also yields that made the thread yield twice which is wrong.
 
 
 ---- RATIONALE ----
