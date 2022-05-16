@@ -95,8 +95,8 @@ struct thread
     /*Used in priority scheduler & priority donations variables */
     int priority;                       /* Priority. */
     int  base_priority;                 /*  Orignial priority of thread */
-    struct lock *waiting_lock;          /* A pointer to the lock the thread is waiting on. */
-    struct list locks;                  /* List of locks the thread is holding. has elem_thread 
+    struct lock *waiting_lock;          /* A pointer to the lock this thread is waiting on. */
+    struct list locks;                  /* List of locks this thread is holding. has elem_thread 
                                           in synch.h as its list element */
     ///////////////////////////////////////////////////////////////////////////////
     struct list_elem allelem;           /* List element for all threads list. */

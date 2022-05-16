@@ -315,9 +315,6 @@ thread_unblock (struct thread *t)
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
   list_push_back (&ready_list, &t->elem);
-  ///////////////////////////////////////////////////////////////
-  //list_sort(&ready_list, &list_less_comp, NULL);//sort the thread list
-  //////////////////////////////////////////////////////////////
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -389,9 +386,6 @@ thread_yield (void)
   old_level = intr_disable ();
 if (cur != idle_thread){
     list_push_back (&ready_list, &cur->elem);
-    //////////////////////////////////////////////////////////////////////////
-    //list_sort(&ready_list,  list_less_comp, NULL);//sort the threads ready list
-    /////////////////////////////////////////////////////////////////////////// 
 }
   cur->status = THREAD_READY;
   schedule ();
@@ -428,7 +422,10 @@ thread_set_priority (int new_priority)
   thread_current()->base_priority = new_priority;// update its original priority by default
 
   //disable interrupts until this code is done
-  enum intr_level old_level = intr_disable();
+ // enum intr_level old_level = intr_disable();
+ struct lock l;
+ lock_init(&l);
+ lock_acquire(&l);
   if(!list_empty(&ready_list))//if the ready list is not empty then we have to think
                                 //about whether to yield or not
   {
@@ -441,14 +438,10 @@ thread_set_priority (int new_priority)
     }
   }
   //re-enable the interrupts
-  intr_set_level(old_level);
-  //////////////////////////////////////////////////////////// i am here
+  //intr_set_level(old_level);
+  lock_release(&l);
+  ////////////////////////////////////////////////////////////
   }
-  // else{
-  //   /*mlfqs scheduler's job */
-  //   thread_current()->priority = new_priority;
-  //   thread_current()->base_priority = new_priority;
-  // }
 }
 
 /* Returns the current thread's priority. */
@@ -475,9 +468,11 @@ thread_set_nice (int nice UNUSED)
     p = PRI_MAX;
   }
   thread_current()->priority = p;
-  // printf("\nthread %d new priority: %d new nice: %d, recent_cpu: %d \n", thread_current()->tid, thread_current()->priority, thread_current()->nice, real_to_int(thread_current()->recent_cpu));
   // re-schedule
-  intr_disable();
+  //intr_disable();
+  //struct lock l;
+  //lock_init(&l);
+  //lock_acquire(&l);
   // check if the thread doesn't have the highest priority
   if(list_size(&ready_list) > 0)
   {
@@ -488,7 +483,8 @@ thread_set_nice (int nice UNUSED)
       thread_yield();
     }
   }
-  intr_enable();
+  //lock_release(&l);
+  //intr_enable();
 }
 
 /* Returns the current thread's nice value. */
