@@ -8,11 +8,11 @@
 
 >> Fill in the names and email addresses of your group members.
 
-Mohamed El-Shazly <es-MohamedEzzat2024@alexu.edu.eg>
-Aaser El-Gharably <es-AserFawzy2024@alexu.edu.eg>
-Ahmed Osman       <email@domain.example>
-Ahmed Ashour      <email@domain.example>
-Mariam Osman      <email@domain.example>
+Mohamed El-Shazly 19016441 <es-MohamedEzzat2024@alexu.edu.eg>
+Aaser El-Gharably 19015403 <es-AserFawzy2024@alexu.edu.eg>
+Ahmed Osman       19017253 <es-hamdiahmed906@alexu.edu.eg>
+Ahmed Ashour      19015267 <es-AhmedAshour2024@alexu.edu.eg>
+Mariam Osman      19017274 <es-mariamosmann04@alexu.edu.eg>
 
 
 ---- PRELIMINARIES ----
@@ -34,9 +34,16 @@ Mariam Osman      <email@domain.example>
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
  Added to timer:
- 
-    /* global variable that holds the Blocked threads list*/
-    struct list blocked_threads;
+    struct list blocked_threads;  /* global variable that holds the Blocked threads list*/
+
+members Added to struct thread:
+    int64_t start  /*used to save the start time of the thread.*/
+    Int64_t ticks  /*used to save the number of sleep ticks of a thread.*/
+    struct list_elem timerelem  /*list element for blocked_threads list.*/
+
+declared in timer.c
+    struct list blocked_threads /*the list is used to save the blocked threads*/
+
 
 ---- ALGORITHMS ----
 
@@ -53,6 +60,7 @@ thread and removes it from the blocked_threads list.
 
 >> A3: What steps are taken to minimize the amount of time spent in
 >> the timer interrupt handler?
+
 The threads are inserted in the blocked_threads list ordered according to the 
 time remaining for each thread to complete its ticks (ticks – time elapsed from
 the thread start). Hence the timer interrupt breaks the loop on the block
@@ -64,13 +72,29 @@ threads with the first thread that does not fulfil the unblocking condition
 >> A4: How are race conditions avoided when multiple threads call
 >> timer_sleep() simultaneously?
 
+The race condition was avoided by disabling the interrupts when 
+the thread enter the critical section where it is inserted in the 
+blocked_threads list which is a global variable so only one thread 
+at a time can update the list.
+
 >> A5: How are race conditions avoided when a timer interrupt occurs
 >> during a call to timer_sleep()?
+
+The race condition was avoided by disabling the interrupt when the 
+timer_sleep() insert a thread into the blocked_threads list which 
+is a global shared between to timer interrupt() and timer_sleep().
+Hence the timer interrupt will not acquire the CPU if the 
+timer_sleep() is in the critical section.
 
 ---- RATIONALE ----
 
 >> A6: Why did you choose this design?  In what ways is it superior to
 >> another design you considered?
+
+The other design that was considered was using a semaphore.
+Both designs we considered are equally superior and can do the purpose, 
+only the semaphore implementation needed to be modified. 
+Hence the design with easier and more intuitive implementation was chosen.
 
              PRIORITY SCHEDULING
              ===================
@@ -116,11 +140,11 @@ Added to struct lock:
                         |      picks max prioirty                            
                        locks           |                                   
                         V              |
-    ------------------------------------------
+    ---------------------------------------
         +--------+     +--------+      |
         | lock 1 |<--->| lock 0 |<------
         +--------+     +--------+      |
-------------------------------------------------
+    ---------------------------------------
             |                |         |
          waiters           waiters  picks max_prio
             v                v         |
@@ -186,7 +210,9 @@ Added to struct lock:
     When setting a new priority the critical region picks the maximum thread to
     compare it with the current thread to see if (with the new priority) it
     should yield or not but the problem occures when setting a priority another
-    thread may also call thread_set_priority() and lowers its 
+    thread may also call thread_set_priority() and lowers its priority so it is
+    supposed to yield but before yielding the control goes back to the first 
+    thread and it yields 
 
 
 ---- RATIONALE ----
@@ -199,7 +225,11 @@ Added to struct lock:
        1- we use this approche to get the maxium thread to handle priority donatoin case
        2- it easier te handle the round robin by inserting every theard at the last of list
        3- it is superior to the other design it is faster O(N) compare to O(NlogN)
-        
+
+    second design: list of holded locks by the thread 
+    another considered design: pointer to the biggest holded lock
+        1-  it is superior to the other design it can this design can deal 
+            with nested donations and when the lock releses the lock
 
               ADVANCED SCHEDULER
               ==================
@@ -209,7 +239,6 @@ Added to struct lock:
 >> C1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
-
 
 ---- ALGORITHMS ----
 
@@ -235,7 +264,12 @@ ticks   A   B   C   A   B   C   to run
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
 >> them?  Does this match the behavior of your scheduler?
+
  if two threads having the same prioirty exists one is currently running and 
+ the other is in ready queue, when the first yields by default it goes at the
+ end of the ready list and the next_thread_to_run() chooses the first maximum it
+ encounters so the scheme goes in a round robin way.
+ 
 
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
