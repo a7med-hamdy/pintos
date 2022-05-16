@@ -159,7 +159,8 @@ thread_tick (void)
         n++;
       }
       //update load_avg
-      load_avg = add_real_real(divide_real_int(multiply_real_int(load_avg,59),60), divide_real_int(int_to_real(n),60));
+      load_avg = add_real_real(divide_real_int(multiply_real_int(load_avg,59),60)
+                               , divide_real_int(int_to_real(n),60));
       // calculate recent_cpu for all threads
       while(iter != list_end(&all_list))
       {
@@ -170,10 +171,11 @@ thread_tick (void)
           continue;
         }
         //coefficient first
-        struct real x = divide_real_real(multiply_real_int(load_avg,2),add_real_int(multiply_real_int(load_avg,2),1));
+        struct real x = divide_real_real(multiply_real_int(load_avg,2),
+                        add_real_int(multiply_real_int(load_avg,2),1));
         // update recent_cpu
-        thread->recent_cpu = add_real_int(multiply_real_real(x,thread->recent_cpu),thread->nice);
-        //printf("thread %s , recent_cpu: %d, priority: %d, avg: %d\n", thread->name, real_to_int(thread->recent_cpu), thread->priority, real_to_int(load_avg));
+        thread->recent_cpu = add_real_int(multiply_real_real(x,thread->recent_cpu)
+                                          ,thread->nice);
         iter = list_next(iter);
       }
     }
@@ -190,7 +192,8 @@ thread_tick (void)
           iter = list_next(iter);
           continue;
         }
-        int p = PRI_MAX - real_to_int(divide_real_int(thread->recent_cpu, 4)) - thread->nice*2;
+        int p = PRI_MAX - real_to_int(divide_real_int(thread->recent_cpu, 4))
+                - thread->nice*2;
         if(p < PRI_MIN)
         {
           p = PRI_MIN;
@@ -200,7 +203,6 @@ thread_tick (void)
           p = PRI_MAX;
         }
         thread->priority = p;
-        // printf("thread %d , priority: %d\n", thread->tid, thread->priority);
         iter = list_next(iter);
       }
     }
@@ -273,8 +275,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
   /////////////////////////////////////////////////
-  if(thread_current()->priority < t->priority)//if the new priority is higher
-                                                // than the newly created thread's priority
+  /*if the new priority is higher
+    than the newly created thread's priority*/
+  if(thread_current()->priority < t->priority)
      thread_yield();//yield the CPU
   //////////////////////////////////////////////////
   return tid;
@@ -416,18 +419,22 @@ thread_set_priority (int new_priority)
   ///setting priority is different when mlfqs scheduler is turned on
   if(!thread_mlfqs){
   ////////////////////////////////////////////////////////
-  //if the current thread is not holding any locks or its getting a higher priority
-  if(list_empty(&thread_current()->locks) || new_priority > thread_current()->priority)
-      thread_current ()->priority = new_priority;//update its priority
-  thread_current()->base_priority = new_priority;// update its original priority by default
+  /*if the current thread is not holding any locks or its getting a higher
+   priority*/
+  if(list_empty(&thread_current()->locks) 
+     || new_priority > thread_current()->priority)
+     {
+       thread_current ()->priority = new_priority;//update its priority
+     }
+     // update its original priority by default
+  thread_current()->base_priority = new_priority;
 
-  //disable interrupts until this code is done
- // enum intr_level old_level = intr_disable();
+  //lock this critical region until this code is done
  struct lock l;
  lock_init(&l);
  lock_acquire(&l);
-  if(!list_empty(&ready_list))//if the ready list is not empty then we have to think
-                                //about whether to yield or not
+  if(!list_empty(&ready_list))/*if the ready list is not empty then we have to
+                                think about whether to yield or not*/
   {
     //get the list element with highest priority in the ready list
   struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
@@ -437,8 +444,7 @@ thread_set_priority (int new_priority)
       thread_yield();//yield the CPU 
     }
   }
-  //re-enable the interrupts
-  //intr_set_level(old_level);
+  //release the lock
   lock_release(&l);
   ////////////////////////////////////////////////////////////
   }
@@ -458,7 +464,8 @@ thread_set_nice (int nice UNUSED)
 {
   thread_current()->nice = nice;
   // re-calculate the priority
-  int p = PRI_MAX - real_to_int(divide_real_int(thread_current()->recent_cpu, 4)) - thread_current()->nice*2;
+  int p = PRI_MAX - real_to_int(divide_real_int(thread_current()->recent_cpu, 4))
+           - thread_current()->nice*2;
   if(p < PRI_MIN)
   {
     p = PRI_MIN;
@@ -469,10 +476,6 @@ thread_set_nice (int nice UNUSED)
   }
   thread_current()->priority = p;
   // re-schedule
-  //intr_disable();
-  //struct lock l;
-  //lock_init(&l);
-  //lock_acquire(&l);
   // check if the thread doesn't have the highest priority
   if(list_size(&ready_list) > 0)
   {
@@ -483,8 +486,6 @@ thread_set_nice (int nice UNUSED)
       thread_yield();
     }
   }
-  //lock_release(&l);
-  //intr_enable();
 }
 
 /* Returns the current thread's nice value. */
