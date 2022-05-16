@@ -210,6 +210,19 @@ Added to struct lock:
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+Added in struct thread in thread.h:
+    int nice;                   /* How nice the thread can yield the thread */
+    struct real recent_cpu;     /* How recent was this thread on the CPU */
+
+Added global variable in thread.c:
+    static struct real load_avg;
+
+Added a new struct real in fixed-point.h:
+    #define F 16384 // 2^14
+
+    struct real{                /* fixed point representation of integer*/
+        int val;
+    };
 
 ---- ALGORITHMS ----
 
@@ -218,19 +231,22 @@ Added to struct lock:
 >> scheduling decision and the priority and recent_cpu values for each
 >> thread after each given number of timer ticks:
 
-timer  recent_cpu    priority   thread
-ticks   A   B   C   A   B   C   to run
------  --  --  --  --  --  --   ------
- 0
- 4
- 8
-12
-16
-20
-24
-28
-32
-36
+formula: 
+priority = 63 - (recent_cpu/4) - nice * 2
+
+timer    recent_cpu   |     priority   |  thread
+ticks   A    B    C   |   A    B    C  |  to run
+-----  ---  ---  ---  |  ---  ---  --- |  -----
+ 0      0    0    0   |  63   61   59  |    A
+ 4      4    0    0   |  62   61   59  |    A
+ 8      8    0    0   |  61   61   59  |    B
+12      8    4    0   |  61   60   59  |    A
+16     12    4    0   |  60   60   59  |    B
+20     12    8    0   |  60   59   59  |    C
+24     12    8    4   |  60   59   58  |    A
+28     16    8    4   |  59   59   58  |    B
+32     16   12    4   |  59   58   58  |    C
+36     16   12    8   |  59   58   57  |    A
 
 >> C3: Did any ambiguities in the scheduler specification make values
 >> in the table uncertain?  If so, what rule did you use to resolve
@@ -240,12 +256,34 @@ ticks   A   B   C   A   B   C   to run
 >> C4: How is the way you divided the cost of scheduling between code
 >> inside and outside interrupt context likely to affect performance?
 
+The cost of scheduling duirng the interrupt may increase the recent cpu 
+usage of the thread while the thread is not doing its actual job,so the 
+time for scheduling have to be as optimized as possible as it may be 
+deprived from the processor , while it can't do its job.
+The cost of scheduling outside the interrupt is inherited from 
+the priority scheduler, except for priority donation.
+
 ---- RATIONALE ----
 
 >> C5: Briefly critique your design, pointing out advantages and
 >> disadvantages in your design choices.  If you were to have extra
 >> time to work on this part of the project, how might you choose to
 >> refine or improve your design?
+
+The advantage is providing a different, and more efficient than normal
+priority, algorithm for scheduling based on processor usage and 
+processor time taken by the thread. The disadvantges of this technique
+are time taken for calculating processor usage and times taken by each
+processor in addition to the process of scheduling itself may take 
+a considerable time of the thread's execution and therefore 
+its recent cpu increases while nor doing its job. an optimization for
+this design can be calculating the recent cpu time for each thread in
+a different way. The time will be estimated during the thread's job 
+execution and during the interrupt, time estimation will stop. 
+This can be achieved by assigning the timer interrupt to unique specialized
+thread where it will update all other thread's execution values. 
+Therefore, every thread's estimated load or time will be 
+the actual work done on its job.
 
 >> C6: The assignment explains arithmetic for fixed-point math in
 >> detail, but it leaves it open to you to implement it.  Why did you
