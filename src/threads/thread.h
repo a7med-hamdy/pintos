@@ -97,6 +97,13 @@ struct thread
     int  base_priority;                 /*  Orignial priority of thread */
     //struct lock *waiting_lock;          /* A pointer to the lock this thread is
     //                                      waiting on.*/
+   struct thread * waiting_child;
+   struct thread * parent;
+   struct list child_threads;
+   struct list_elem childs_thread_elem;
+   struct semaphore parent_child_sync;
+   struct file *open_file;
+   int status;
 
     //struct list locks;                  /* List of locks this thread is holding.
       //                                   has elem_thread in synch.h as its list

@@ -250,13 +250,19 @@ thread_create (const char *name, int priority,
 
   /* Allocate thread. */
   t = palloc_get_page (PAL_ZERO);
-  if (t == NULL)
+  if (t == NULL){
     return TID_ERROR;
+  }
 
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
 
+  /* link between child & parent */
+  if(thread_current()!= idle_thread)
+    t->parent = thread_current();
+  thread_current()->waiting_child = t;
+  
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
   kf->eip = NULL;
@@ -280,6 +286,7 @@ thread_create (const char *name, int priority,
   if(thread_current()->priority < t->priority)
      thread_yield();//yield the CPU
   //////////////////////////////////////////////////
+
   return tid;
 }
 
@@ -605,6 +612,10 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
+
+  List_init(&t->child_threads);
+  sema_init(&t->parent_child_sync, 0);
+  
   // advanced scheduler case
   if(thread_mlfqs)
   {

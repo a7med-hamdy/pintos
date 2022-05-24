@@ -30,18 +30,30 @@ process_execute (const char *file_name)
 {
   char *fn_copy;
   tid_t tid;
-
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-
+  char* exec_name = (file_name, " "); 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
+
+  /*changed the places because if thread_create failed to create the thread the
+    current thread does not wait aimlessly on a non existent child
+    1- the parent thread already know the tid of the child
+    */
+  //sema_down(&thread_current()->parent_child_sync);
+  
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
+  sema_down(&thread_current()->parent_child_sync);  
+
+  if(thread_current()->status=0)
+    return TID_ERROR;
+  
   return tid;
 }
 
@@ -53,19 +65,37 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-
+  char *exec_name = strtok(file_name, " ");
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (file_name, &if_.eip, &if_.esp);
+  success = load (exec_name, &if_.eip, &if_.esp);
 
+
+    /*push arguments in the child's stack*/
+  
+  
+  
   /* If load failed, quit. */
   palloc_free_page (file_name);
-  if (!success) 
+  if (!success) {
+    if(thread_current()->parent != NULL)
+    {
+      thread_current()->parent->status = 0;
+      sema_up(&thread_current()->parent->parent_child_sync);
+    }
     thread_exit ();
-
+  }
+  
+  
+  if(thread_current()->parent != NULL)
+  {
+    list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
+    thread_current()->parent->status = 1;
+    sema_up(&thread_current()->parent->parent_child_sync);
+  }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -88,7 +118,11 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  return -1;
+  while(true) 
+  {
+    thread_yield();
+  }
+  //return -1;
 }
 
 /* Free the current process's resources. */
@@ -214,15 +248,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
-
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
-
   /* Open executable file. */
+  
   file = filesys_open (file_name);
+  
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -309,8 +343,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  file_deny_write(file);
+  thread_current()->open_file=file;
  done:
+
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   return success;
