@@ -416,11 +416,22 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
+  thread_current()->base_priority = new_priority;
+  thread_current()->priority - new_priority;
+  struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
+  struct thread * t = list_entry(e, struct thread, elem);// get its thread 
+  if(new_priority <= t->priority )  //if its priority is highter 
+  {
+      thread_yield();//yield the CPU 
+  }
+}
   ///setting priority is different when mlfqs scheduler is turned on
+  /*
   if(!thread_mlfqs){
   ////////////////////////////////////////////////////////
   /*if the current thread is not holding any locks or its getting a higher
    priority*/
+   /*
   if(list_empty(&thread_current()->locks) 
      || new_priority > thread_current()->priority)
      {
@@ -435,7 +446,8 @@ thread_set_priority (int new_priority)
  lock_acquire(&l);
   if(!list_empty(&ready_list))/*if the ready list is not empty then we have to
                                 think about whether to yield or not*/
-  {
+  //{
+    /*
     //get the list element with highest priority in the ready list
   struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
   struct thread * t = list_entry(e, struct thread, elem);// get its thread 
@@ -445,10 +457,10 @@ thread_set_priority (int new_priority)
     }
   }
   //release the lock
-  lock_release(&l);
+  lock_release(&l);*/
   ////////////////////////////////////////////////////////////
-  }
-}
+  //}
+//}
 
 /* Returns the current thread's priority. */
 int
@@ -626,9 +638,9 @@ init_thread (struct thread *t, const char *name, int priority)
   }
   t->magic = THREAD_MAGIC;
   //////////////////////////////////////////////
-  t->waiting_lock=NULL;
+ // t->waiting_lock=NULL;
   t->base_priority = priority;
-  list_init(&t->locks);
+  //list_init(&t->locks);
   ////////////////////////////////////////////////
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
