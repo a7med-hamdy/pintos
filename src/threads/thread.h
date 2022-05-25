@@ -101,9 +101,9 @@ struct thread
    struct thread * parent;
    struct list child_threads;
    struct list_elem childs_thread_elem;
-   struct semaphore parent_child_sync;
+   struct semaphore *parent_child_sync;
    struct file *open_file;
-   int status;
+   int status_child;
 
     //struct list locks;                  /* List of locks this thread is holding.
       //                                   has elem_thread in synch.h as its list

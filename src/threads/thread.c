@@ -283,8 +283,8 @@ thread_create (const char *name, int priority,
   /////////////////////////////////////////////////
   /*if the new priority is higher
     than the newly created thread's priority*/
-  if(thread_current()->priority < t->priority)
-     thread_yield();//yield the CPU
+/*  if(thread_current()->priority < t->priority)
+     thread_yield();//yield the CPU*/
   //////////////////////////////////////////////////
 
   return tid;
@@ -424,7 +424,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current()->base_priority = new_priority;
-  thread_current()->priority - new_priority;
+  thread_current()->priority = new_priority;
   struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
   struct thread * t = list_entry(e, struct thread, elem);// get its thread 
   if(new_priority <= t->priority )  //if its priority is highter 
@@ -613,7 +613,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
 
-  List_init(&t->child_threads);
+  list_init(&t->child_threads);
   sema_init(&t->parent_child_sync, 0);
   
   // advanced scheduler case
@@ -702,10 +702,11 @@ next_thread_to_run (void)
   else{
   ////////////////////////////////////////////////////////////////////////////////
   //get the list element with highest priority in the ready list
-    struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
+   /* struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
     list_remove(e); //remove it from the ready list
     struct thread * t = list_entry(e,struct thread, elem);//get its thread
-    return t;// return the found thread
+    return t;// return the found thread*/
+    return list_entry(list_pop_front(&ready_list),struct thread, elem);
   }
     //////////////////////////////////////////////////////////////////////////////
 }
@@ -782,7 +783,7 @@ schedule (void)
   }
 
   thread_schedule_tail (prev);
-  //printf("thread prev=%d ,thread next=%d \n",next->name,cur->name);
+ 
 }
 
 /* Returns a tid to use for a new thread. */

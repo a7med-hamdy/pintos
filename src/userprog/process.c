@@ -16,6 +16,7 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
+//#include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
@@ -36,7 +37,8 @@ process_execute (const char *file_name)
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-  char* exec_name = (file_name, " "); 
+  char * save_ptr;
+  char* exec_name = strtok_r(file_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
@@ -49,10 +51,10 @@ process_execute (const char *file_name)
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  sema_down(&thread_current()->parent_child_sync);  
+  sema_down(thread_current()->parent_child_sync);  
 
-  if(thread_current()->status=0)
-    return TID_ERROR;
+  if(thread_current()->status==0)
+    return -1;
   
   return tid;
 }
@@ -65,13 +67,13 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
-  char *exec_name = strtok(file_name, " ");
+  //char *exec_name = strtok(file_name, " ");
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-  success = load (exec_name, &if_.eip, &if_.esp);
+  success = load (file_name, &if_.eip, &if_.esp);
 
 
     /*push arguments in the child's stack*/
@@ -83,8 +85,8 @@ start_process (void *file_name_)
   if (!success) {
     if(thread_current()->parent != NULL)
     {
-      thread_current()->parent->status = 0;
-      sema_up(&thread_current()->parent->parent_child_sync);
+      thread_current()->parent->status_child = 0;
+      sema_up(thread_current()->parent->parent_child_sync);
     }
     thread_exit ();
   }
@@ -93,8 +95,8 @@ start_process (void *file_name_)
   if(thread_current()->parent != NULL)
   {
     list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
-    thread_current()->parent->status = 1;
-    sema_up(&thread_current()->parent->parent_child_sync);
+    thread_current()->parent->status_child = 1;
+    sema_up(thread_current()->parent->parent_child_sync);
   }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -254,8 +256,12 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
   /* Open executable file. */
-  
-  file = filesys_open (file_name);
+  char * fn_cp = palloc_get_page (0);
+
+  strlcpy(fn_cp, file_name, PGSIZE);
+  char * save_ptr;
+  fn_cp = strtok_r(fn_cp," ",&save_ptr);
+  file = filesys_open (fn_cp);
   
   if (file == NULL) 
     {
