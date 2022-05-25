@@ -15,7 +15,8 @@
 
 static void syscall_handler (struct intr_frame *);
 void validate_pointer(void* p);
-struct lock * lock;
+void exit(int);
+struct lock lock;
 
 struct files{
     int fd;
@@ -33,15 +34,12 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
- 
-  printf ("system call!\n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
 
     case SYS_HALT:
     {
-      printf("system call halt");
       shutdown_power_off();
       break;
     }
@@ -49,7 +47,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_EXIT:
     {
       validate_pointer(((int*)f->esp+1));
-      // process_exit(*((int*)f->esp+1));
+      int status = *((int*)f->esp+1);
+      exit(status);
+      break;
     }
     case SYS_EXEC:
     {
@@ -107,4 +107,11 @@ void validate_pointer(void * p)
   {
     process_exit();
   }
+}
+
+void exit(int status)
+{
+  thread_current()->exit_status = status;
+  printf ("%s: exit(%d)\n",thread_current()->name, thread_current()->exit_status);
+  thread_exit();
 }
