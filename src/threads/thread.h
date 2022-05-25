@@ -5,6 +5,8 @@
 #include <list.h>
 #include <stdint.h>
 #include "fixed-point.h"
+#include "synch.h"
+
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -95,16 +97,18 @@ struct thread
     /*Used in priority scheduler & priority donations variables */
     int priority;                       /* Priority. */
     int  base_priority;                 /*  Orignial priority of thread */
-    struct lock *waiting_lock;          /* A pointer to the lock this thread is
-    //                                      waiting on.*/
+    struct lock *waiting_lock;         /* A pointer to the lock this thread is
+    //            
+                              waiting on.*/
+   struct semaphore parent_child_sync;         
    struct thread * waiting_child;
    struct thread * parent;
    struct list child_threads;
    struct list_elem childs_thread_elem;
-   struct semaphore *parent_child_sync;
+   
    struct file *open_file;
    int status_child;
-
+   int exit_status;
     struct list locks;                  /* List of locks this thread is holding.
       //                                   has elem_thread in synch.h as its list
         //                                  element */

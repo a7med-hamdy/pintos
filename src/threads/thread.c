@@ -257,7 +257,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-  list_init(&t->files);
+ 
   /* link between child & parent */
   if(thread_current()!= idle_thread)
     t->parent = thread_current();
@@ -605,6 +605,7 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
 
+   list_init(&t->files);
   list_init(&t->child_threads);
   sema_init(&t->parent_child_sync, 0);
   list_init(&t->locks);
@@ -696,11 +697,11 @@ next_thread_to_run (void)
   else{
   ////////////////////////////////////////////////////////////////////////////////
   //get the list element with highest priority in the ready list
-   /* struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
+    struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
     list_remove(e); //remove it from the ready list
     struct thread * t = list_entry(e,struct thread, elem);//get its thread
-    return t;// return the found thread*/
-    return list_entry(list_pop_front(&ready_list),struct thread, elem);
+    return t;// return the found thread
+    //return list_entry(list_pop_front(&ready_list),struct thread, elem);
   }
     //////////////////////////////////////////////////////////////////////////////
 }
