@@ -352,18 +352,18 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char zeroChar = 0;// this has a byte size necessary to extend to 4 bytes
   char zeroInt = 0;// this is appended between each of the stack elments
                   // to follow stack conventions
-  int i=0; //loop counter to hold 
+  int k=0; //loop counter to hold 
   
   //parse string and get the arguments & save them in arguments string
   //push them into the stack while saving their pointers in argumentPointers
-  while((argumentStrings[i] = strtok_r(file_name," ", &file_name))){
+  while((argumentStrings[k] = strtok_r(file_name," ", &file_name))){
     *esp -= sizeof(char*);
-    memcpy(*esp, &argumentStrings[i], sizeof(char*));
-    argumentPointers[i] = *esp; 
-    i++;
+    memcpy(*esp, &argumentStrings[k], sizeof(char*));
+    argumentPointers[k] = *esp; 
+    k++;
   }
   //count of arguments
-  int argumentCount = i;
+  int argumentCount = k;
   //extend to occupy 4 bytes
   for(int j = (int)*esp; j % 4 == 0;j -= sizeof(char)){
     *esp -= sizeof(char);
@@ -376,9 +376,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   //start pushing the string pointers into the stack 
   int x;
-  for(x=i-1; x>=0; x--){
+  for(x=k-1; x>=0; x--){
     *esp -= sizeof(int);
-    memcpy(*esp,  &argumentPointers[i], sizeof(int));
+    memcpy(*esp,  &argumentPointers[k], sizeof(int));
   }
   //push the pointer to the array of pointers
   *esp-=sizeof(int);
@@ -557,32 +557,3 @@ install_page (void *upage, void *kpage, bool writable)
 
 
 
-
-
-
-
-
-
-int exec_proc(char *file_name)
-{
-	acquire_filesys_lock();
-	char * fn_cp = malloc (strlen(file_name)+1);
-	  strlcpy(fn_cp, file_name, strlen(file_name)+1);
-	  
-	  char * save_ptr;
-	  fn_cp = strtok_r(fn_cp," ",&save_ptr);
-
-	 struct file* f = filesys_open (fn_cp);
-
-	  if(f==NULL)
-	  {
-	  	release_filesys_lock();
-	  	return -1;
-	  }
-	  else
-	  {
-	  	file_close(f);
-	  	release_filesys_lock();
-	  	return process_execute(file_name);
-	  }
-}
