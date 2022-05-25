@@ -16,6 +16,7 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
+#include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
@@ -46,13 +47,13 @@ process_execute (const char *file_name)
     1- the parent thread already know the tid of the child
     */
   //sema_down(&thread_current()->parent_child_sync);
-  
+  debug_backtrace_all();
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+  else
+    sema_down(&thread_current()->parent_child_sync);  
 
-  sema_down(thread_current()->parent_child_sync);  
-
-  if(thread_current()->status==0)
+  if(thread_current()->status_child==0)
     return -1;
   
   return tid;
@@ -76,16 +77,14 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
-  
-  
-  
+  hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
     if(thread_current()->parent != NULL)
     {
       thread_current()->parent->status_child = 0;
-      sema_up(thread_current()->parent->parent_child_sync);
+      sema_up(&thread_current()->parent->parent_child_sync);
     }
     thread_exit ();
   }
@@ -95,7 +94,7 @@ start_process (void *file_name_)
   {
     list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
     thread_current()->parent->status_child = 1;
-    sema_up(thread_current()->parent->parent_child_sync);
+    sema_up(&thread_current()->parent->parent_child_sync);
   }
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
@@ -123,7 +122,7 @@ process_wait (tid_t child_tid UNUSED)
   {
     thread_yield();
   }
-  //return -1;
+  return -1;
 }
 
 /* Free the current process's resources. */
@@ -133,6 +132,17 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+
+   /*if(cur->exit_error==-100)
+      exit_proc(-1);
+
+    int exit_code = cur->exit_error;
+    printf("%s: exit(%d)\n",cur->name,exit_code);
+
+    acquire_filesys_lock();
+    file_close(thread_current()->self);
+    close_all_files(&thread_current()->files);
+    release_filesys_lock();*/
   /* Destroy the current process's page directory and switch back
      to the kernel-only page directory. */
   pd = cur->pagedir;
@@ -261,7 +271,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char * save_ptr;
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
   file = filesys_open (fn_cp);
-  free(fn_cp);
+ 
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
