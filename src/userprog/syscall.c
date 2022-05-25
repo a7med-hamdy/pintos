@@ -1,55 +1,88 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
-#include <stdlib.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "devices/shutdown.h"
+#include "filesys/filesys.h"
+#include "filesys/file.h"
+#include "threads/synch.h"
 #include "pagedir.h"
 #include "syscall-nr.h"
 #include "process.h"
+#include "list.h"
 
 static void syscall_handler (struct intr_frame *);
 void validate_pointer(void* p);
+struct lock * lock;
 
-
+struct files{
+    int fd;
+    struct list_elem elem;
+    struct file* file;
+};
 
 void
 syscall_init (void) 
 {
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
+  lock_init(&lock);
 }
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
+ 
   printf ("system call!\n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
 
+    case SYS_HALT:
+    {
+      printf("system call halt");
+      shutdown_power_off();
+      break;
+    }
+
+    case SYS_EXIT:
+    {
+      validate_pointer(((int*)f->esp+1));
+      // process_exit(*((int*)f->esp+1));
+    }
     case SYS_EXEC:
     {
         validate_pointer(((int*)f->esp+1));
-        process_execute((char*)*((int*)f->esp+1));
+        // process_execute((char*)*((int*)f->esp+1));
         break;
     }
 
-    // sys write is done first to allow printf
-    // case SYS_WRITE:
-    // {
-    //   validate_pointer(((int*)f->esp+1));
-    //   int fd = *(((int*)f->esp+1));
-    //   validate_pointer(((int*)f->esp+2));
-    //   void * buffer = (void*)(*((int*)f->esp+2));
-    //   validate_pointer(((int*)f->esp+3));
-    //   unsigned size = *((unsigned*)f->esp+3);
-    //   if(fd == 1)
-    //   {
-    //     f->eax = putbuf(buffer, size);
-    //   }
-    //   break;
-    // }
+    case SYS_WRITE:
+    {
+      validate_pointer(((int*)f->esp+1));
+      int fd = *(((int*)f->esp+1));
+      validate_pointer(((int*)f->esp+2));
+      void * buffer = (void*)(*((int*)f->esp+2));
+      validate_pointer(((int*)f->esp+3));
+      unsigned size = *((unsigned*)f->esp+3);
+      // writing to STDIN
+      if(fd == 0)
+      {
+        // process_exit(-1);
+      }
+      // writing to STDOUT
+      else if(fd == 1)
+      {
+        putbuf(buffer, size);
+        f->eax = (int)size;
+      }
+      else
+      {
+        // file_write();
+      }
+      break;
+    }
 
   }
 

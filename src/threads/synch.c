@@ -128,8 +128,8 @@ sema_up (struct semaphore *sema)
 
   //////////////////////////////////////////////
   //if there were threads in the waiting and their maximum's priority is higher
-  if(t != NULL&& t->priority > thread_current()->priority)                                                          
-      thread_yield();// yield the CPU
+  //if(t != NULL&& t->priority > thread_current()->priority)                                                          
+    //  thread_yield();// yield the CPU
     ///////////////////////////////////////////////
 }
 
@@ -227,8 +227,8 @@ lock_acquire (struct lock *lock)
   //////////////////////////////////////////////
   //if the holder has been determined and we are not working with
   // mlfqs scheduler
-  //enum intr_level old_level = intr_disable();
-  /*if(!thread_mlfqs && lock->holder != NULL)
+  enum intr_level old_level = intr_disable();
+  if(!thread_mlfqs && lock->holder != NULL)
   {
       // then the entering thread will wait on this lock
       thread_current()->waiting_lock = lock;
@@ -258,14 +258,14 @@ lock_acquire (struct lock *lock)
      
     
  //////////////////////////////////////
-  }*/
+  }
 
  /* here the waiters will enter the queue */
   sema_down (&lock->semaphore);
   /*solution*/
   /* here the holder is determined */
   lock->holder = thread_current ();
-  /*intr_set_level(old_level);
+  intr_set_level(old_level);
   //if we are not working with the mlfqs scheduler 
   if(!thread_mlfqs){
   thread_current()->waiting_lock = NULL;
@@ -273,7 +273,7 @@ lock_acquire (struct lock *lock)
   lock->max_prio = lock->holder->priority;
   // push this lock into the holder's list of locks it its holding
   list_push_back(&lock->holder->locks,  &lock->elem_thread);
-  }*/
+  }
   ////////////////////////////////////////////////////////
 
 }
@@ -309,7 +309,7 @@ lock_release (struct lock *lock)
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
   //if we are not using the mlfqs scheduler
- /* if(!thread_mlfqs){
+  if(!thread_mlfqs){
   list_remove(&lock->elem_thread);//remove this lock from the holder's list
   // if the priority of the holder bigger than its lock's priority
   if(lock->holder->priority >=lock->max_prio)
@@ -335,7 +335,7 @@ lock_release (struct lock *lock)
   else
       //if the holder's priority is smaller we reset it back
        lock->holder->priority = lock->holder->base_priority;
-  }*/
+  }
   // after releasing the lock reset the holder to null
   lock->holder = NULL;
   // choose the next from the waiting list

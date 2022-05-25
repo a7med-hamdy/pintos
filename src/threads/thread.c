@@ -257,7 +257,7 @@ thread_create (const char *name, int priority,
   /* Initialize thread. */
   init_thread (t, name, priority);
   tid = t->tid = allocate_tid ();
-
+  list_init(&t->files);
   /* link between child & parent */
   if(thread_current()!= idle_thread)
     t->parent = thread_current();
@@ -283,7 +283,7 @@ thread_create (const char *name, int priority,
   /////////////////////////////////////////////////
   /*if the new priority is higher
     than the newly created thread's priority*/
-/*  if(thread_current()->priority < t->priority)
+ /*if(thread_current()->priority < t->priority)
      thread_yield();//yield the CPU*/
   //////////////////////////////////////////////////
 
@@ -390,7 +390,7 @@ thread_yield (void)
 {
   struct thread *cur = thread_current ();
   enum intr_level old_level;
-  
+   debug_backtrace_all();
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
@@ -423,22 +423,14 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current()->base_priority = new_priority;
-  thread_current()->priority = new_priority;
-  struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
-  struct thread * t = list_entry(e, struct thread, elem);// get its thread 
-  if(new_priority <= t->priority )  //if its priority is highter 
-  {
-      thread_yield();//yield the CPU 
-  }
-}
+
   ///setting priority is different when mlfqs scheduler is turned on
-  /*
+  
   if(!thread_mlfqs){
   ////////////////////////////////////////////////////////
   /*if the current thread is not holding any locks or its getting a higher
    priority*/
-   /*
+   
   if(list_empty(&thread_current()->locks) 
      || new_priority > thread_current()->priority)
      {
@@ -453,8 +445,8 @@ thread_set_priority (int new_priority)
  lock_acquire(&l);
   if(!list_empty(&ready_list))/*if the ready list is not empty then we have to
                                 think about whether to yield or not*/
-  //{
-    /*
+  {
+    
     //get the list element with highest priority in the ready list
   struct list_elem *e = list_min(&ready_list, list_less_comp, NULL);
   struct thread * t = list_entry(e, struct thread, elem);// get its thread 
@@ -464,10 +456,10 @@ thread_set_priority (int new_priority)
     }
   }
   //release the lock
-  lock_release(&l);*/
+  lock_release(&l);
   ////////////////////////////////////////////////////////////
-  //}
-//}
+  }
+}
 
 /* Returns the current thread's priority. */
 int
@@ -615,6 +607,8 @@ init_thread (struct thread *t, const char *name, int priority)
 
   list_init(&t->child_threads);
   sema_init(&t->parent_child_sync, 0);
+  list_init(&t->locks);
+  t->waiting_lock = NULL;
   
   // advanced scheduler case
   if(thread_mlfqs)
