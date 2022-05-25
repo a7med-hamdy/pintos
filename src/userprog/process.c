@@ -16,7 +16,6 @@
 #include "threads/interrupt.h"
 #include "threads/palloc.h"
 #include "threads/thread.h"
-//#include "threads/synch.h"
 #include "threads/vaddr.h"
 
 static thread_func start_process NO_RETURN;
@@ -262,7 +261,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char * save_ptr;
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
   file = filesys_open (fn_cp);
-  
+  free(fn_cp);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -344,6 +343,55 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+  
+  /* string array that holds arguments parsed by the strok_r()*/
+  char* argumentStrings[5];
+  /* array of pointers to the location of the argument strings parsed in stack */
+  int * argumentPointers[5];
+  /*helper variables */
+  char zeroChar = 0;// this has a byte size necessary to extend to 4 bytes
+  char zeroInt = 0;// this is appended between each of the stack elments
+                  // to follow stack conventions
+  int i=0; //loop counter to hold 
+  
+  //parse string and get the arguments & save them in arguments string
+  //push them into the stack while saving their pointers in argumentPointers
+  while((argumentStrings[i] = strtok_r(file_name," ", &file_name))){
+    *esp -= sizeof(char*);
+    memcpy(*esp, &argumentStrings[i], sizeof(char*));
+    argumentPointers[i] = *esp; 
+    i++;
+  }
+  //count of arguments
+  int argumentCount = i;
+  //extend to occupy 4 bytes
+  for(int j = (int)*esp; j % 4 == 0;j -= sizeof(char)){
+    *esp -= sizeof(char);
+    memcpy(*esp,&zeroChar,sizeof(char));
+  }
+
+  //push a zero between strings & pointers
+  *esp -= sizeof(int);
+  memcpy(*esp,  &zeroInt, sizeof(int));
+  
+  //start pushing the string pointers into the stack 
+  int x;
+  for(x=i-1; x>=0; x--){
+    *esp -= sizeof(int);
+    memcpy(*esp,  &argumentPointers[i], sizeof(int));
+  }
+  //push the pointer to the array of pointers
+  *esp-=sizeof(int);
+  memcpy(*esp,&argumentPointers,sizeof(int));
+  
+  //push the number of arguments
+  *esp-=sizeof(int);
+  memcpy(*esp,&argumentCount,sizeof(int));
+  //push another zero
+  *esp-=sizeof(int);
+  memcpy(*esp,&zeroInt,sizeof(int));
+
+   
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
@@ -352,7 +400,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_deny_write(file);
   thread_current()->open_file=file;
  done:
-
   /* We arrive here whether the load is successful or not. */
   file_close (file);
   return success;
@@ -483,6 +530,8 @@ setup_stack (void **esp)
       else
         palloc_free_page (kpage);
     }
+
+  
   return success;
 }
 
@@ -504,4 +553,36 @@ install_page (void *upage, void *kpage, bool writable)
      address, then map our page there. */
   return (pagedir_get_page (t->pagedir, upage) == NULL
           && pagedir_set_page (t->pagedir, upage, kpage, writable));
+}
+
+
+
+
+
+
+
+
+
+int exec_proc(char *file_name)
+{
+	acquire_filesys_lock();
+	char * fn_cp = malloc (strlen(file_name)+1);
+	  strlcpy(fn_cp, file_name, strlen(file_name)+1);
+	  
+	  char * save_ptr;
+	  fn_cp = strtok_r(fn_cp," ",&save_ptr);
+
+	 struct file* f = filesys_open (fn_cp);
+
+	  if(f==NULL)
+	  {
+	  	release_filesys_lock();
+	  	return -1;
+	  }
+	  else
+	  {
+	  	file_close(f);
+	  	release_filesys_lock();
+	  	return process_execute(file_name);
+	  }
 }
