@@ -39,6 +39,8 @@ static struct thread *initial_thread;
 /* Lock used by allocate_tid(). */
 static struct lock tid_lock;
 
+struct lock file_lock;
+
 /* Stack frame for kernel_thread(). */
 struct kernel_thread_frame 
   {
@@ -96,7 +98,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  lock_init(&file_lock);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -793,6 +795,14 @@ allocate_tid (void)
   lock_release (&tid_lock);
 
   return tid;
+}
+
+void acquire_file_lock(){
+  lock_acquire(&file_lock);
+}
+
+void relese_file_lock(){
+  lock_release(&file_lock);
 }
 
 /* Offset of `stack' member within `struct thread'.

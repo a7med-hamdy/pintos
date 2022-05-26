@@ -75,7 +75,7 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
-  hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
+ // hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -86,8 +86,6 @@ start_process (void *file_name_)
     }
     thread_exit ();
   }
-  
-  
   if(thread_current()->parent != NULL)
   {
     list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
@@ -116,10 +114,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(true) 
+  /*while(true) 
   {
     thread_yield();
-  }
+  }*/
   return -1;
 }
 
@@ -251,6 +249,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
+  
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -258,6 +257,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
+
+  acquire_file_lock();
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -278,7 +279,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
   
   file = filesys_open (fn_cp);
-    
+  //printf ("file_name: %s: , fn_cp: %s \n", file_name,fn_cp);
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -357,7 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
-  debug_backtrace_all();
+  //debug_backtrace_all();
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
@@ -420,7 +421,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-   lock_release(&lock);
+
+  relese_file_lock();
+
   return success;
 }
 
