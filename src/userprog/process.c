@@ -21,7 +21,6 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
-
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -47,7 +46,6 @@ process_execute (const char *file_name)
     1- the parent thread already know the tid of the child
     */
   //sema_down(&thread_current()->parent_child_sync);
-  debug_backtrace_all();
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   else
@@ -259,25 +257,34 @@ load (const char *file_name, void (**eip) (void), void **esp)
   off_t file_ofs;
   bool success = false;
   int i;
+
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
   /* Open executable file. */
+
+  /*char * fn_cp = malloc (strlen(file_name)+1);
+  strlcpy(fn_cp, file_name, strlen(file_name)+1);
+  
+  char * save_ptr;
+  fn_cp = strtok_r(fn_cp," ",&save_ptr);*/
   char * fn_cp = palloc_get_page (0);
 
-  strlcpy(fn_cp, file_name, PGSIZE);
+  strlcpy(fn_cp, file_name, strlen(file_name)+1);
   char * save_ptr;
+
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
+  
   file = filesys_open (fn_cp);
- 
+    
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
       goto done; 
     }
-
+  
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
       || memcmp (ehdr.e_ident, "\177ELF\1\1\1", 7)
@@ -350,6 +357,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
+  debug_backtrace_all();
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
@@ -412,6 +420,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
+   lock_release(&lock);
   return success;
 }
 
