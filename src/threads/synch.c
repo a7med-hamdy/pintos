@@ -128,8 +128,8 @@ sema_up (struct semaphore *sema)
 
   //////////////////////////////////////////////
   //if there were threads in the waiting and their maximum's priority is higher
-  if(t != NULL&& t->priority > thread_current()->priority)                                                          
-      thread_yield();// yield the CPU
+  /*if(t != NULL&& t->priority > thread_current()->priority)                                                          
+      thread_yield();// yield the CPU*/
     ///////////////////////////////////////////////
 }
 
