@@ -75,7 +75,7 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
- hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
+   hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -366,10 +366,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* string array that holds arguments parsed by the strok_r()*/
   char* argumentStrings[5];
   /* array of pointers to the location of the argument strings parsed in stack */
-  int argumentPointers[5];
+  int* argumentPointers[5];
   /*helper variables */
   char zeroChar = 0;// this has a byte size necessary to extend to 4 bytes
-  char zeroInt = 0;// this is appended between each of the stack elements
+  int zeroInt = 0;// this is appended between each of the stack elements
                   // to follow stack conventions
   int k=0; //loop counter to hold 
   
@@ -379,34 +379,37 @@ load (const char *file_name, void (**eip) (void), void **esp)
     *esp -= strlen(argumentStrings[k])+1;
     printf("%s \n" , argumentStrings[k]);
     memcpy(*esp,argumentStrings[k], strlen(argumentStrings[k])+1);
-    argumentPointers[k] = *esp; 
+
+    argumentPointers[k] = (int *)*esp;
     k++;
   }
   //count of arguments
   int argumentCount = k;
   //extend to occupy 4 bytes
-  for(int j = (int)*esp; j % 4 == 0;j -= sizeof(char)){
-    *esp -= sizeof(char);
-    memcpy(*esp,&zeroChar,sizeof(char));
+  for((int)*esp; (int)*esp % 4 != 0;*esp -= sizeof(char)){
+    memset(*esp,&zeroChar,sizeof(char));
   }
 
   //push a zero between strings & pointers
   *esp -= sizeof(int);
   memcpy(*esp,&zeroInt, sizeof(int));
   
-  //start pushing the string pointers into the stack 
+  //start pushing the string pointers into the stack
   int x;
   for(x=k-1; x>=0; x--){
-    *esp -= sizeof(char*);
-    memcpy(*esp,  &argumentPointers[k], sizeof(char*));
+    *esp -= sizeof(int);
+    //memcpy(*esp,&argumentPointers[k], sizeof(int));
+    (*(int **)(*esp))= argumentPointers[x];
   }
-  //push the pointer to the array of pointers
+  //push the pointer of the argv
+  int pt = *esp;
   *esp-=sizeof(int);
-  memcpy(*esp,&argumentPointers,sizeof(int));
+  memcpy(*esp,&pt,sizeof(int));
   
   //push the number of arguments
   *esp-=sizeof(int);
   memcpy(*esp,&argumentCount,sizeof(int));
+
   //push another zero
   *esp-=sizeof(int);
   memcpy(*esp,&zeroInt,sizeof(int));
@@ -425,7 +428,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   relese_file_lock();
 
-  printf("passed*******************\n");
   return success;
 }
 
