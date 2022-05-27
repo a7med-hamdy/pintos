@@ -261,8 +261,10 @@ thread_create (const char *name, int priority,
   tid = t->tid = allocate_tid ();
  
   /* link between child & parent */
-  if(thread_current()!= idle_thread)
+  if(thread_current()!= idle_thread){
     t->parent = thread_current();
+    list_push_back(&thread_current()->child_threads, &t->childs_thread_elem);
+  }
   thread_current()->waiting_child = t;
   
   /* Stack frame for kernel_thread(). */

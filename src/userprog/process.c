@@ -117,11 +117,41 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  while(true) 
+  // validate tid
+  struct list chlidren = thread_current()->child_threads;
+  //check if the thread is a child of the current thread
+  struct list_elem* iter = list_begin(&chlidren);
+  bool is_child_of_current_thread = false;
+  struct thread* child;
+  while(iter != list_end(&chlidren)){
+    child = list_entry(iter, struct thread, childs_thread_elem);
+    if(child->tid = child_tid){
+      is_child_of_current_thread = true;
+    }
+    iter = list_next(iter);
+  }
+  if(!is_child_of_current_thread) return -1;
+  //kernel has killed child already
+  if(child->exit_status == -1) return -1;
+  // child suscessfully called process wait before
+  if(child->exit_status == 0) return 0;
+
+  // make parent point to the child
+  thread_current()->waiting_child = child;
+  //wake child
+  thread_unblock(child);
+  //remove child from parent list
+  list_remove(child);
+
+  //make parent sleep
+  sema_down(&thread_current()->parent_child_sync);
+  
+  //return child status
+  return thread_current()->waiting_child->exit_status;
+  /*while(true) 
   {
     thread_yield();
-  }
-  return -1;
+  }*/
 }
 
 /* Free the current process's resources. */
@@ -158,6 +188,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+    //wake parent up
+    sema_up(&cur->parent->parent_child_sync);
 }
 
 /* Sets up the CPU for running user code in the current
