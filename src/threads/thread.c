@@ -612,7 +612,8 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->parent_child_sync, 0);
   list_init(&t->locks);
   t->waiting_lock = NULL;
-  
+  // fds is intialized to 2 because 0 and 1 are reserved for STDIN and STDOUT
+  t->fds = 2;
   // advanced scheduler case
   if(thread_mlfqs)
   {
@@ -699,11 +700,11 @@ next_thread_to_run (void)
   else{
   ////////////////////////////////////////////////////////////////////////////////
   //get the list element with highest priority in the ready list
-    struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
+    /*struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
     list_remove(e); //remove it from the ready list
     struct thread * t = list_entry(e,struct thread, elem);//get its thread
-    return t;// return the found thread
-    //return list_entry(list_pop_front(&ready_list),struct thread, elem);
+    return t;// return the found thread*/
+    return list_entry(list_pop_front(&ready_list),struct thread, elem);
   }
     //////////////////////////////////////////////////////////////////////////////
 }

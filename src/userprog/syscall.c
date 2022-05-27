@@ -1,5 +1,6 @@
 #include "userprog/syscall.h"
 #include <stdio.h>
+#include <stdlib.h>
 #include <syscall-nr.h>
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -16,6 +17,7 @@
 
 static void syscall_handler (struct intr_frame *);
 void validate_pointer(void* p);
+void close_file(int);
 int get_int(int* esp);
 char* get_char_ptr(int* esp);
 void* get_void_ptr(int* esp);
@@ -47,29 +49,30 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf("system call \n");
+  // printf("system call \n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
-
+    
     case SYS_HALT:
     {
-      printf("***************************\n");
-       //debug_backtrace_all();
+      //debug_backtrace_all();
       shutdown_power_off();
       break;
     }
 
     case SYS_EXIT:
     {
+      // printf("exit******************************");
       validate_pointer(((int*)f->esp+1));
       int status = *((int*)f->esp+1);
+      // process_exit();
       exit(status);
       break;
     }
     case SYS_EXEC:
     {
-        printf("right here*****************************\n");
+        printf("exec*****************************\n");
         validate_pointer(((int*)f->esp+1));
         printf("%s\n", (char*)*((int*)f->esp+1));
         f->eax = process_execute((char*)*((int*)f->esp+1));
@@ -78,6 +81,29 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WAIT:
       f->eax = wait_wrapper(f->esp);
       break;
+
+    case SYS_OPEN:
+    {
+      validate_pointer(((int*)f->esp+1));
+      char* name = *(((int*)f->esp+1));
+      lock_acquire(&lock);
+      struct file *ptr = filesys_open(name);
+      lock_release(&lock);
+      if(ptr == NULL)
+      {
+        f->eax = -1;
+        break;
+      }
+      else
+      {
+        struct files* file_struct = (struct files*)malloc(sizeof(struct files));
+        file_struct-> fd = thread_current()->fds;
+        file_struct-> file = ptr;
+        list_push_back(&thread_current()->files,&file_struct->elem);
+        thread_current()->fds++;
+        break;
+      }
+    }
 
     case SYS_WRITE:
     {
@@ -149,7 +175,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     }
-    
+
     case SYS_FILESIZE:
     {
       validate_pointer(((int*)f->esp+1));
@@ -168,6 +194,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     }
 
+
     case SYS_CREATE: 
       f->eax = create_wrapper(f->esp);
       break;
@@ -181,9 +208,16 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = tell_wrapper(f->esp);
       break;
 
+    case SYS_CLOSE:
+    {
+      validate_pointer(((int*)f->esp+1));
+      int fd = *(((int*)f->esp+1));
+      close_file(fd);
+    }
+
   }
 
-  thread_exit ();
+  // thread_exit ();
 }
 
 void validate_pointer(void * p)
@@ -191,17 +225,20 @@ void validate_pointer(void * p)
   // check if the pointer is null
   if(p == NULL)
   {
+    printf("null***************\n");
     exit(-1);
   }
   // check if the pointer within user program space
   else if(! is_user_vaddr(p))
   {
+    printf("vaddr***************\n");
     exit(-1);
   }
   // check if the pointer within the process's page
   // this function is used instead of lookup_page as it is static
   else if(pagedir_get_page(thread_current()->pagedir, p) == NULL)
   {
+    printf("pagedir****************\n");
     exit(-1);
   }
 }
@@ -335,8 +372,18 @@ struct files* get_file(struct list list, int fd)
       temp = t;
       break;
     }
+    iter = list_next(iter);
   }
   return temp;
+}
+
+void close_file(int fd)
+{
+  struct files *f = get_file(thread_current()->files, fd);
+  list_remove(&f->elem);
+  lock_acquire(&lock);
+  file_close(f->file);
+  lock_release(&lock); 
 }
 
 void exit(int status)

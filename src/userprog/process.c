@@ -32,13 +32,16 @@ process_execute (const char *file_name)
   tid_t tid;
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
+     
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
+   //printf("file name got her= %s \n",fn_copy);
   char * save_ptr;
   char* exec_name = strtok_r(file_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
+  
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
   /*changed the places because if thread_create failed to create the thread the
@@ -75,7 +78,7 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
-   hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
+   //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -114,10 +117,10 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  /*while(true) 
+  while(true) 
   {
     thread_yield();
-  }*/
+  }
   return -1;
 }
 
@@ -130,7 +133,7 @@ process_exit (void)
 
 
    /*if(cur->exit_error==-100)
-      exit_proc(-1);
+      exit(-1);
 
     int exit_code = cur->exit_error;
     printf("%s: exit(%d)\n",cur->name,exit_code);
@@ -375,19 +378,22 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   //parse string and get the arguments & save them in arguments string
   //push them into the stack while saving their pointers in argumentPointers
+  //printf("file name=: %s \n",file_name);
   while((argumentStrings[k] = strtok_r(file_name," ", &file_name))){
+    //printf("file name=: %s \n",argumentStrings[k]);
     *esp -= strlen(argumentStrings[k])+1;
-    printf("%s \n" , argumentStrings[k]);
+    //printf("%s \n" , argumentStrings[k]);
     memcpy(*esp,argumentStrings[k], strlen(argumentStrings[k])+1);
 
-    argumentPointers[k] = (int *)*esp;
+    argumentPointers[k] = *esp;
     k++;
   }
   //count of arguments
   int argumentCount = k;
   //extend to occupy 4 bytes
-  for((int)*esp; (int)*esp % 4 != 0;*esp -= sizeof(char)){
-    memset(*esp,&zeroChar,sizeof(char));
+  for(int j =(int)*esp; j % 4 != 0;j -= sizeof(char)){
+    *esp -= sizeof(char);
+    memcpy(*esp,&zeroChar,sizeof(char));
   }
 
   //push a zero between strings & pointers

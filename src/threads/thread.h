@@ -116,8 +116,10 @@ struct thread
     struct list_elem allelem;           /* List element for all threads list. */
     struct list_elem timerelem;         /* List element for timer */
     struct list files;                  /* List of files decriptors held by the thread*/
+    int fds;                            /* file descriptor counter for every thread
 /////////////////////////////////////////////////////////////////////////////////////
     int nice;                           /* How nice the thread can yield the thread */
+    int nice;
     struct real recent_cpu;             /* How recent was this thread on the CPU */
     ///////////////////////////////////////////////////////////////////////////////////
     /* Shared between thread.c and synch.c. */
