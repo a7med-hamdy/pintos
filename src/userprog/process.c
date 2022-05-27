@@ -125,8 +125,9 @@ process_wait (tid_t child_tid UNUSED)
   struct thread* child;
   while(iter != list_end(&chlidren)){
     child = list_entry(iter, struct thread, childs_thread_elem);
-    if(child->tid = child_tid){
+    if(child->tid == child_tid){
       is_child_of_current_thread = true;
+      break;
     }
     iter = list_next(iter);
   }
