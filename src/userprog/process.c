@@ -75,7 +75,7 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
- // hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
+ hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -298,7 +298,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: error loading executable\n", file_name);
       goto done; 
     }
-
+  
   /* Read program headers. */
   file_ofs = ehdr.e_phoff;
   for (i = 0; i < ehdr.e_phnum; i++) 
@@ -358,7 +358,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
         }
     }
 
-  //debug_backtrace_all();
+  
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
@@ -366,18 +366,19 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* string array that holds arguments parsed by the strok_r()*/
   char* argumentStrings[5];
   /* array of pointers to the location of the argument strings parsed in stack */
-  int * argumentPointers[5];
+  int argumentPointers[5];
   /*helper variables */
   char zeroChar = 0;// this has a byte size necessary to extend to 4 bytes
-  char zeroInt = 0;// this is appended between each of the stack elments
+  char zeroInt = 0;// this is appended between each of the stack elements
                   // to follow stack conventions
   int k=0; //loop counter to hold 
   
   //parse string and get the arguments & save them in arguments string
   //push them into the stack while saving their pointers in argumentPointers
   while((argumentStrings[k] = strtok_r(file_name," ", &file_name))){
-    *esp -= sizeof(char*);
-    memcpy(*esp, &argumentStrings[k], sizeof(char*));
+    *esp -= strlen(argumentStrings[k])+1;
+    printf("%s \n" , argumentStrings[k]);
+    memcpy(*esp,argumentStrings[k], strlen(argumentStrings[k])+1);
     argumentPointers[k] = *esp; 
     k++;
   }
@@ -391,13 +392,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   //push a zero between strings & pointers
   *esp -= sizeof(int);
-  memcpy(*esp,  &zeroInt, sizeof(int));
+  memcpy(*esp,&zeroInt, sizeof(int));
   
   //start pushing the string pointers into the stack 
   int x;
   for(x=k-1; x>=0; x--){
-    *esp -= sizeof(int);
-    memcpy(*esp,  &argumentPointers[k], sizeof(int));
+    *esp -= sizeof(char*);
+    memcpy(*esp,  &argumentPointers[k], sizeof(char*));
   }
   //push the pointer to the array of pointers
   *esp-=sizeof(int);
@@ -424,6 +425,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   relese_file_lock();
 
+  printf("passed*******************\n");
   return success;
 }
 

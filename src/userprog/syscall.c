@@ -34,6 +34,7 @@ struct files{
     struct list_elem elem;
     struct file* file;
 };
+struct file* get_file(struct list);
 
 void
 syscall_init (void) 
@@ -46,13 +47,14 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //debug_backtrace_all();
+  printf("system call \n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
 
     case SYS_HALT:
     {
+      printf("***************************\n");
        //debug_backtrace_all();
       shutdown_power_off();
       break;
@@ -67,8 +69,10 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC:
     {
+        printf("right here*****************************\n");
         validate_pointer(((int*)f->esp+1));
-        // process_execute((char*)*((int*)f->esp+1));
+        printf("%s\n", (char*)*((int*)f->esp+1));
+        f->eax = process_execute((char*)*((int*)f->esp+1));
         break;
     }
     case SYS_WAIT:
@@ -100,6 +104,16 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     }
+    case SYS_READ:
+    {
+      break;
+    }
+    case SYS_FILESIZE:
+    {
+      
+      break;
+    }
+
     case SYS_CREATE: 
       f->eax = create_wrapper(f->esp);
       break;
@@ -258,6 +272,15 @@ void* get_void_ptr(int* esp){
   return (void*) *esp;
 }
 
+
+struct file* get_file(struct list list)
+{
+  // struct list_elem* iter = list_begin(&list);
+  // while(iter != list_end(&list))
+  // {
+  //   int t = list_entry(iter, int,  elem);
+  // }
+}
 
 void exit(int status)
 {
