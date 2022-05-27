@@ -34,7 +34,7 @@ struct files{
     struct list_elem elem;
     struct file* file;
 };
-struct file* get_file(struct list);
+struct files* get_file(struct list, int);
 
 void
 syscall_init (void) 
@@ -90,7 +90,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       // writing to STDIN
       if(fd == 0)
       {
-        // process_exit(-1);
+        exit(-1);
       }
       // writing to STDOUT
       else if(fd == 1)
@@ -100,17 +100,71 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       else
       {
-        // file_write();
+        struct files* ptr = get_file(thread_current()->files, fd);
+        if(ptr == NULL)
+        {
+          f->eax = -1;
+        }
+        else
+        {
+          lock_acquire(&lock);
+          f->eax = file_write(ptr->file, buffer, size);
+          lock_release(&lock);
+        }
       }
       break;
     }
     case SYS_READ:
     {
+      validate_pointer(((int*)f->esp+1));
+      int fd = *(((int*)f->esp+1));
+      validate_pointer(((int*)f->esp+2));
+      void * buffer = (void*)(*((int*)f->esp+2));
+      validate_pointer(((int*)f->esp+3));
+      unsigned size = *((unsigned*)f->esp+3);
+      // reading from STDOUT
+      if(fd == 1)
+      {
+        exit(-1);
+      }
+      // reading from STDIN
+      else if(fd == 0)
+      {    
+        buffer = input_getc();
+        f->eax = (int)size;
+      }
+      else
+      {
+        struct files* ptr = get_file(thread_current()->files, fd);
+        if(ptr == NULL)
+        {
+          f->eax = -1;
+        }
+        else
+        {
+          lock_acquire(&lock);
+          f->eax = file_read(ptr->file, buffer, size);
+          lock_release(&lock);
+        }
+      }
       break;
     }
+    
     case SYS_FILESIZE:
     {
-      
+      validate_pointer(((int*)f->esp+1));
+      int fd = *(((int*)f->esp+1));
+      struct files* ptr = get_file(thread_current()->files, fd);
+      if(ptr == NULL)
+      {
+        f->eax = -1;
+      }
+      else
+      {
+        lock_acquire(&lock);
+        f->eax = file_length(ptr->file);
+        lock_release(&lock);
+      }
       break;
     }
 
@@ -127,10 +181,6 @@ syscall_handler (struct intr_frame *f UNUSED)
       f->eax = tell_wrapper(f->esp);
       break;
 
-
-
-
-
   }
 
   thread_exit ();
@@ -141,18 +191,18 @@ void validate_pointer(void * p)
   // check if the pointer is null
   if(p == NULL)
   {
-    process_exit();
+    exit(-1);
   }
   // check if the pointer within user program space
   else if(! is_user_vaddr(p))
   {
-    process_exit();
+    exit(-1);
   }
   // check if the pointer within the process's page
   // this function is used instead of lookup_page as it is static
   else if(pagedir_get_page(thread_current()->pagedir, p) == NULL)
   {
-    process_exit();
+    exit(-1);
   }
 }
 
@@ -273,13 +323,20 @@ void* get_void_ptr(int* esp){
 }
 
 
-struct file* get_file(struct list list)
+struct files* get_file(struct list list, int fd)
 {
-  // struct list_elem* iter = list_begin(&list);
-  // while(iter != list_end(&list))
-  // {
-  //   int t = list_entry(iter, int,  elem);
-  // }
+  struct list_elem* iter = list_begin(&list);
+  struct files *temp = NULL;
+  while(iter != list_end(&list))
+  {
+    struct files* t = list_entry(iter,struct files,  elem);
+    if(t->fd == fd)
+    {
+      temp = t;
+      break;
+    }
+  }
+  return temp;
 }
 
 void exit(int status)
