@@ -117,7 +117,6 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  // validate tid
   struct list chlidren = thread_current()->child_threads;
   //check if the thread is a child of the current thread
   struct list_elem* iter = list_begin(&chlidren);
@@ -131,11 +130,11 @@ process_wait (tid_t child_tid UNUSED)
     }
     iter = list_next(iter);
   }
-  if(!is_child_of_current_thread) return -1;
-  //kernel has killed child already
-  if(child->exit_status == -1) return -1;
-  // child suscessfully called process wait before
-  if(child->exit_status == 0) return 0;
+  // validate tid
+  if(!is_child_of_current_thread 
+  || child->exit_status == -1
+  || child->exit_status == 0) return -1;
+  
 
   // make parent point to the child
   thread_current()->waiting_child = child;
