@@ -18,7 +18,7 @@
 #include "threads/thread.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-
+#include "lib/kernel/list.h"
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 /* Starts a new thread running a user program loaded from
@@ -49,15 +49,14 @@ process_execute (const char *file_name)
     current thread does not wait aimlessly on a non existent child
     1- the parent thread already know the tid of the child
     */
-  //sema_down(&thread_current()->parent_child_sync);
+  sema_down(&thread_current()->parent_child_sync);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  else
-    sema_down(&thread_current()->parent_child_sync);  
-
+  
+  //  sema_down(&thread_current()->parent_child_sync);  
+    
   if(thread_current()->status_child==0)
     return -1;
-  
   return tid;
 }
 
@@ -92,10 +91,13 @@ start_process (void *file_name_)
   }
   if(thread_current()->parent != NULL)
   {
+    printf("waking up parent***********************************************************");
     list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
     thread_current()->parent->status_child = 1;
     sema_up(&thread_current()->parent->parent_child_sync);
   }
+  sema_down(&thread_current()->parent->parent_child_sync);
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -118,6 +120,8 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+    printf("process wait*****************************************\n");
+
   struct list chlidren = thread_current()->child_threads;
   //check if the thread is a child of the current thread
   struct list_elem* iter = list_begin(&chlidren);
@@ -132,16 +136,19 @@ process_wait (tid_t child_tid UNUSED)
     iter = list_next(iter);
   }
   // validate tid
-  if(!is_child_of_current_thread 
+  if(!is_child_of_current_thread
   || child->exit_status == -1
-  || child->exit_status == 0) return -1;
+  || child->exit_status == 0) {
+    printf("exit status = %d \n", child->exit_status);
+    return -1;}
   
-
   // make parent point to the child
   thread_current()->waiting_child = child;
+  //thread_unblock(child);
   //remove child from parent list
   list_remove(&child->childs_thread_elem);
   //make parent sleep
+  sema_up(&thread_current()->parent_child_sync);
   sema_down(&thread_current()->parent_child_sync);
   //return child status
   return thread_current()->waiting_child->exit_status;
@@ -156,8 +163,8 @@ process_exit (void)
   uint32_t *pd;
 
   //wake parent up
-  if(cur->parent != NULL)
-    sema_up(&cur->parent->parent_child_sync);
+        sema_up(&cur->parent->parent_child_sync);
+
   pd = cur->pagedir;
   if (pd != NULL) 
     {
@@ -172,6 +179,7 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
 }
 
 /* Sets up the CPU for running user code in the current

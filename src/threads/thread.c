@@ -264,6 +264,7 @@ thread_create (const char *name, int priority,
   if(thread_current()!= idle_thread)
     t->parent = thread_current();
   thread_current()->waiting_child = t;
+
   
   /* Stack frame for kernel_thread(). */
   kf = alloc_frame (t, sizeof *kf);
@@ -401,7 +402,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
 if (cur != idle_thread){
-    list_push_front (&ready_list, &cur->elem);
+    list_push_back (&ready_list, &cur->elem);
 }
   cur->status = THREAD_READY;
   schedule ();
@@ -678,15 +679,21 @@ alloc_frame (struct thread *t, size_t size)
   threads to get which one to run passed to list_min() in the thread_yield(),
   set_nice(), set_priority() & passed to sema_up() in the synch.c file
 */
+
 bool 
 list_less_comp(const struct list_elem* a, const struct list_elem* b,
                void* aux UNUSED)
 {
   const int a_member = (list_entry(a, struct thread, elem)->priority);
   const int b_member = (list_entry(b, struct thread, elem)->priority);
-  
+ /*if(a_member == b_member){
+    const int c_member = (list_entry(a, struct thread, elem)->tid);
+    const int d_member = (list_entry(b, struct thread, elem)->tid);
+    return c_member < d_member;
+ } */
   return a_member > b_member;
 }
+
 ///////////////////////////////////////////////////////////////////////////////
 
 
@@ -703,10 +710,12 @@ next_thread_to_run (void)
   else{
   ////////////////////////////////////////////////////////////////////////////////
   //get the list element with highest priority in the ready list
+  
     struct list_elem * e = list_min(&ready_list, &list_less_comp, NULL);
     list_remove(e); //remove it from the ready list
     struct thread * t = list_entry(e,struct thread, elem);//get its thread
     return t;// return the found thread
+    
     //return list_entry(list_pop_front(&ready_list),struct thread, elem);
   }
     //////////////////////////////////////////////////////////////////////////////
@@ -784,7 +793,8 @@ schedule (void)
   }
 
   thread_schedule_tail (prev);
- 
+   //printf("exinting**************************************");
+
 }
 
 /* Returns a tid to use for a new thread. */
