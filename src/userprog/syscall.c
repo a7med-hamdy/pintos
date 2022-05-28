@@ -244,13 +244,13 @@ void validate_pointer(void * p)
 
 bool 
 create(const char* file, unsigned initial_size){
-    printf("got herer 1\n");
+   // printf("got herer 1\n");
   lock_acquire(&lock);
-    printf("got herer 2,%s, %d \n",file ,initial_size);
+   // printf("got herer 2,%s, %d \n",file ,initial_size);
   bool is_created = filesys_create(file, initial_size);
-    printf("got herer 3\n");
+   // printf("got herer 3\n");
   lock_release(&lock);
-  printf("got herer 4\n");
+ //printf("got herer 4\n");
   return is_created;
 }
 
