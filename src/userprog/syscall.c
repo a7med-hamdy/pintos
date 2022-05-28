@@ -72,7 +72,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC:
     {
-        printf("exec*****************************\n");
         validate_pointer(((int*)f->esp+1));
         printf("%s\n", (char*)*((int*)f->esp+1));
         f->eax = process_execute((char*)*((int*)f->esp+1));
