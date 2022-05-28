@@ -100,7 +100,8 @@ struct thread
     struct lock *waiting_lock;         /* A pointer to the lock this thread is
     //            
                               waiting on.*/
-   struct semaphore parent_child_sync;         
+   struct semaphore parent_child_sync;       
+   struct semaphore child_parent_sync;  
    struct thread * waiting_child;
    struct thread * parent;
    struct list child_threads;

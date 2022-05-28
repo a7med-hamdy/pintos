@@ -615,6 +615,7 @@ init_thread (struct thread *t, const char *name, int priority)
    list_init(&t->files);
   list_init(&t->child_threads);
   sema_init(&t->parent_child_sync, 0);
+  sema_init(&t->child_parent_sync, 0);
   list_init(&t->locks);
   t->waiting_lock = NULL;
   
