@@ -379,8 +379,12 @@ thread_exit (void)
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
+printf("%d**************************************",thread_current()->status);
+  printf("exinting**************************************");
+
   list_remove (&thread_current()->allelem);
   thread_current ()->status = THREAD_DYING;
+
   schedule ();
   NOT_REACHED ();
 }
@@ -397,7 +401,7 @@ thread_yield (void)
 
   old_level = intr_disable ();
 if (cur != idle_thread){
-    list_push_back (&ready_list, &cur->elem);
+    list_push_front (&ready_list, &cur->elem);
 }
   cur->status = THREAD_READY;
   schedule ();

@@ -50,7 +50,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  printf("system call \n");
+  //printf("system call \n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
@@ -73,9 +73,9 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC:
     {
-        printf("excu****************************** \n");
+        //printf("excu****************************** \n");
         validate_pointer(((int*)f->esp+1));
-        printf("char:%s \n",(char*)*((int*)f->esp+1));
+        //printf("char:%s \n",(char*)*((int*)f->esp+1));
         //  const char* sent= (char*)f->esp+1;
         //  printf("char:%s \n",sent);
         f->eax = process_execute( (char*)*((int*)f->esp+1));

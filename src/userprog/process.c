@@ -42,7 +42,7 @@ process_execute (const char *file_name)
   char * save_ptr;
   char* exec_name = strtok_r(file_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
-  printf("file name got her= %s \n",exec_name);
+  //printf("file name got her= %s \n",exec_name);
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
   /*changed the places because if thread_create failed to create the thread the
@@ -52,7 +52,7 @@ process_execute (const char *file_name)
   //sema_down(&thread_current()->parent_child_sync);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
- 
+  else
     sema_down(&thread_current()->parent_child_sync);  
 
   if(thread_current()->status_child==0)
@@ -79,7 +79,7 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
-   hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
+   //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -96,7 +96,6 @@ start_process (void *file_name_)
     thread_current()->parent->status_child = 1;
     sema_up(&thread_current()->parent->parent_child_sync);
   }
-  sema_down(&thread_current()->parent->parent_child_sync);
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -140,15 +139,13 @@ process_wait (tid_t child_tid UNUSED)
 
   // make parent point to the child
   thread_current()->waiting_child = child;
-  //wake child
-  sema_up(&child->parent->parent_child_sync);
   //remove child from parent list
   list_remove(&child->childs_thread_elem);
-
   //make parent sleep
   sema_down(&thread_current()->parent_child_sync);
   //return child status
   return thread_current()->waiting_child->exit_status;
+  
 }
 
 /* Free the current process's resources. */
@@ -158,6 +155,9 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
+  //wake parent up
+  if(cur->parent != NULL)
+    sema_up(&cur->parent->parent_child_sync);
   pd = cur->pagedir;
   if (pd != NULL) 
     {
@@ -172,8 +172,6 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
-    //wake parent up
-    sema_up(&cur->parent->parent_child_sync);
 }
 
 /* Sets up the CPU for running user code in the current
