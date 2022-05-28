@@ -21,6 +21,7 @@ void close_file(int);
 int get_int(int* esp);
 char* get_char_ptr(int* esp);
 void* get_void_ptr(int* esp);
+bool create(const char* file, unsigned initial_size);
 bool create_wrapper(void* esp);
 bool remove_wrapper(void* esp);
 int wait_wrapper(void* esp);
@@ -49,7 +50,7 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  // printf("system call \n");
+  printf("system call \n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
@@ -72,9 +73,12 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
     case SYS_EXEC:
     {
+        printf("excu****************************** \n");
         validate_pointer(((int*)f->esp+1));
-        printf("%s\n", (char*)*((int*)f->esp+1));
-        f->eax = process_execute((char*)*((int*)f->esp+1));
+        printf("char:%s \n",(char*)*((int*)f->esp+1));
+        //  const char* sent= (char*)f->esp+1;
+        //  printf("char:%s \n",sent);
+        f->eax = process_execute( (char*)*((int*)f->esp+1));
         break;
     }
     case SYS_WAIT:
@@ -215,8 +219,6 @@ syscall_handler (struct intr_frame *f UNUSED)
     }
 
   }
-
-  // thread_exit ();
 }
 
 void validate_pointer(void * p)
@@ -224,20 +226,17 @@ void validate_pointer(void * p)
   // check if the pointer is null
   if(p == NULL)
   {
-    printf("null***************\n");
     exit(-1);
   }
   // check if the pointer within user program space
   else if(! is_user_vaddr(p))
   {
-    printf("vaddr***************\n");
     exit(-1);
   }
   // check if the pointer within the process's page
   // this function is used instead of lookup_page as it is static
   else if(pagedir_get_page(thread_current()->pagedir, p) == NULL)
   {
-    printf("pagedir****************\n");
     exit(-1);
   }
 }
@@ -245,19 +244,23 @@ void validate_pointer(void * p)
 
 bool 
 create(const char* file, unsigned initial_size){
+    printf("got herer 1\n");
   lock_acquire(&lock);
+    printf("got herer 2,%s, %d \n",file ,initial_size);
   bool is_created = filesys_create(file, initial_size);
+    printf("got herer 3\n");
   lock_release(&lock);
+  printf("got herer 4\n");
   return is_created;
 }
 
 bool 
 create_wrapper(void* esp){
   validate_pointer((int*)esp+1);
-  char* file = get_char_ptr((int*)esp+1);
+  const char* file = get_char_ptr((int*)esp+1);
   validate_pointer((int*)esp +2);
   unsigned size = get_int((int*)esp+2);
-  return create(file, size);
+  return create(file,(unsigned)size);
 }
 
 
@@ -388,6 +391,15 @@ void close_file(int fd)
 void exit(int status)
 {
   thread_current()->exit_status = status;
+  struct list_elem* iter = list_begin(&thread_current()->files);
+  while(iter != list_end(&thread_current()->files))
+  {
+    struct files* t = list_entry(iter,struct files,  elem);
+    lock_acquire(&lock);
+    file_close(t->file);
+    lock_release(&lock);    
+    iter = list_next(iter);
+  }
   printf ("%s: exit(%d)\n",thread_current()->name, thread_current()->exit_status);
   thread_exit();
 }

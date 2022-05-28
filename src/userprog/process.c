@@ -29,19 +29,20 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
+
   tid_t tid;
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
      
   fn_copy = palloc_get_page (0);
+  
   if (fn_copy == NULL)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
-   //printf("file name got her= %s \n",fn_copy);
   char * save_ptr;
   char* exec_name = strtok_r(file_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
-  
+  printf("file name got her= %s \n",exec_name);
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
   /*changed the places because if thread_create failed to create the thread the
@@ -51,7 +52,7 @@ process_execute (const char *file_name)
   //sema_down(&thread_current()->parent_child_sync);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  else
+ 
     sema_down(&thread_current()->parent_child_sync);  
 
   if(thread_current()->status_child==0)
@@ -78,7 +79,7 @@ start_process (void *file_name_)
 
 
     /*push arguments in the child's stack*/
-   //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
+   hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -95,6 +96,7 @@ start_process (void *file_name_)
     thread_current()->parent->status_child = 1;
     sema_up(&thread_current()->parent->parent_child_sync);
   }
+  sema_down(&thread_current()->parent->parent_child_sync);
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -139,19 +141,14 @@ process_wait (tid_t child_tid UNUSED)
   // make parent point to the child
   thread_current()->waiting_child = child;
   //wake child
-  thread_unblock(child);
+  sema_up(&child->parent->parent_child_sync);
   //remove child from parent list
-  list_remove(child);
+  list_remove(&child->childs_thread_elem);
 
   //make parent sleep
   sema_down(&thread_current()->parent_child_sync);
-  
   //return child status
   return thread_current()->waiting_child->exit_status;
-  /*while(true) 
-  {
-    thread_yield();
-  }*/
 }
 
 /* Free the current process's resources. */
@@ -161,19 +158,6 @@ process_exit (void)
   struct thread *cur = thread_current ();
   uint32_t *pd;
 
-
-   /*if(cur->exit_error==-100)
-      exit(-1);
-
-    int exit_code = cur->exit_error;
-    printf("%s: exit(%d)\n",cur->name,exit_code);
-
-    acquire_filesys_lock();
-    file_close(thread_current()->self);
-    close_all_files(&thread_current()->files);
-    release_filesys_lock();*/
-  /* Destroy the current process's page directory and switch back
-     to the kernel-only page directory. */
   pd = cur->pagedir;
   if (pd != NULL) 
     {
@@ -292,7 +276,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   bool success = false;
   int i;
 
-
+  //printf("file name enter load= %s \n",file_name);
+  
   acquire_file_lock();
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
@@ -312,9 +297,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   char * save_ptr;
 
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
-  
+  //printf("file name after breake load= %s \n",fn_cp);
   file = filesys_open (fn_cp);
-  //printf ("file_name: %s: , fn_cp: %s \n", file_name,fn_cp);
+ 
+
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -398,10 +384,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
   
+ 
   /* string array that holds arguments parsed by the strok_r()*/
-  char* argumentStrings[5];
+  char* argumentStrings[24];
   /* array of pointers to the location of the argument strings parsed in stack */
-  int* argumentPointers[5];
+  int* argumentPointers[24];
   /*helper variables */
   char zeroChar = 0;// this has a byte size necessary to extend to 4 bytes
   int zeroInt = 0;// this is appended between each of the stack elements
@@ -410,11 +397,11 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
   //parse string and get the arguments & save them in arguments string
   //push them into the stack while saving their pointers in argumentPointers
-  //printf("file name=: %s \n",file_name);
+
   while((argumentStrings[k] = strtok_r(file_name," ", &file_name))){
-    //printf("file name=: %s \n",argumentStrings[k]);
+  ;
     *esp -= strlen(argumentStrings[k])+1;
-    //printf("%s \n" , argumentStrings[k]);
+   
     memcpy(*esp,argumentStrings[k], strlen(argumentStrings[k])+1);
 
     argumentPointers[k] = *esp;
