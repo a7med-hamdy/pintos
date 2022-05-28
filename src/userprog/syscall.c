@@ -298,9 +298,9 @@ tell(int fd){
     struct files* file = list_entry(iter, struct files, elem);
     if(file->fd == fd){
        lock_acquire(&lock);
-       unsigned position = tell(fd);
+       unsigned position = file_tell(file->file);
        lock_release(&lock);
-       return fd;
+       return position;
     }
     iter = list_next(iter);
   }
