@@ -37,7 +37,7 @@ struct files{
     struct list_elem elem;
     struct file* file;
 };
-struct files* get_file(struct list, int);
+struct files* get_file(struct list*, int);
 
 void
 syscall_init (void) 
@@ -130,7 +130,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       else
       {
-        struct files* ptr = get_file(thread_current()->files, fd);
+        struct files* ptr = get_file(&thread_current()->files, fd);
         if(ptr == NULL)
         {
           f->eax = -1;
@@ -165,7 +165,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       else
       {
-        struct files* ptr = get_file(thread_current()->files, fd);
+        struct files* ptr = get_file(&thread_current()->files, fd);
         if(ptr == NULL)
         {
           f->eax = -1;
@@ -184,7 +184,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
-      struct files* ptr = get_file(thread_current()->files, fd);
+      struct files* ptr = get_file(&thread_current()->files, fd);
       if(ptr == NULL)
       {
         f->eax = -1;
@@ -363,11 +363,11 @@ void* get_void_ptr(int* esp){
 }
 
 
-struct files* get_file(struct list list, int fd)
+struct files* get_file(struct list* list, int fd)
 {
-  struct list_elem* iter = list_begin(&list);
+  struct list_elem* iter = list_begin(list);
   struct files *temp = NULL;
-  while(iter != list_end(&list))
+  while(iter != list_end(list))
   {
     struct files* t = list_entry(iter,struct files,  elem);
     if(t->fd == fd)
@@ -382,7 +382,7 @@ struct files* get_file(struct list list, int fd)
 
 void close_file(int fd)
 {
-  struct files *f = get_file(thread_current()->files, fd);
+  struct files *f = get_file(&thread_current()->files, fd);
   list_remove(&f->elem);
   lock_acquire(&lock);
   file_close(f->file);

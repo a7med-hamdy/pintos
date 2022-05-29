@@ -128,6 +128,7 @@ process_wait (tid_t child_tid UNUSED)
   struct list_elem* iter = list_begin(&chlidren);
   bool is_child_of_current_thread = false;
   struct thread* child;
+  if(!list_empty(&chlidren)){
   while(iter != list_end(&chlidren)){
     child = list_entry(iter, struct thread, childs_thread_elem);
     if(child->tid == child_tid){
@@ -136,6 +137,7 @@ process_wait (tid_t child_tid UNUSED)
     }
     iter = list_next(iter);
   }
+}
 if(!is_child_of_current_thread)
   return -1;
 
@@ -148,13 +150,6 @@ if(!is_child_of_current_thread)
   //thread_unblock(child);
   sema_up(&thread_current()->child_parent_sync);
   sema_down(&thread_current()->parent_child_sync);
-  }
-  // validate tid
-    if(
-   child->exit_status == -1
-  || child->exit_status == 0) {
-   // printf("exit status = %d \n", child->exit_status);
-    return -1;
   }
   //return child status
   return thread_current()->waiting_child->exit_status;
@@ -296,7 +291,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
   //printf("file name enter load= %s \n",file_name);
   
-  acquire_file_lock();
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -417,7 +411,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //push them into the stack while saving their pointers in argumentPointers
 
   while((argumentStrings[k] = strtok_r(file_name," ", &file_name))){
-  ;
     *esp -= strlen(argumentStrings[k])+1;
    
     memcpy(*esp,argumentStrings[k], strlen(argumentStrings[k])+1);
@@ -468,8 +461,6 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);
-
-  relese_file_lock();
 
   return success;
 }
