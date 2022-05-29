@@ -811,14 +811,6 @@ allocate_tid (void)
 
   return tid;
 }
-
-void acquire_file_lock(){
-  lock_acquire(&file_lock);
-}
-
-void relese_file_lock(){
-  lock_release(&file_lock);
-}
 
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */

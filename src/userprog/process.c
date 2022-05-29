@@ -152,7 +152,8 @@ if(!is_child_of_current_thread)
   sema_down(&thread_current()->parent_child_sync);
   }
   //return child status
-  return thread_current()->waiting_child->exit_status;
+ 
+  return thread_current()->status_child;
   
 }
 
@@ -164,7 +165,8 @@ process_exit (void)
   uint32_t *pd;
 
   //wake parent up
-  if(cur->parent != NULL && cur==cur->parent->waiting_child){
+  if(cur->parent != NULL && cur->tid==cur->parent->waiting_child->tid){
+    cur->parent->status_child=cur->exit_status;
     //cur->parent->waiting_child= NULL;
     sema_up(&cur->parent->parent_child_sync);
   }
