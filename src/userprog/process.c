@@ -29,20 +29,28 @@ tid_t
 process_execute (const char *file_name) 
 {
   char *fn_copy;
-
+   char *fn_copy2;
   tid_t tid;
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
      
-  fn_copy = palloc_get_page (0);
   
+  fn_copy = palloc_get_page (0);
+   fn_copy2 = palloc_get_page (0);
+  //printf("current %s + file_name %s\n",thread_current()->name,file_name);
   if (fn_copy == NULL)
     return TID_ERROR;
-  strlcpy (fn_copy, file_name, PGSIZE);
-  char * save_ptr;
-  char* exec_name = strtok_r(file_name," ",&save_ptr);
-  /* Create a new thread to execute FILE_NAME. */
 
+   //printf("passe error ************************************************\n");
+  strlcpy (fn_copy, file_name, PGSIZE);
+  strlcpy (fn_copy2, file_name, PGSIZE);
+   //printf("passe cpy ************************************************\n");
+  char * save_ptr;
+  char* exec_name = strtok_r(fn_copy2," ",&save_ptr);
+   //printf("passe token ************************************************\n");
+  /* Create a new thread to execute FILE_NAME. */
+  
+  //printf("file name got her= %s \n",exec_name);
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
   /*changed the places because if thread_create failed to create the thread the
@@ -135,7 +143,7 @@ process_wait (tid_t child_tid UNUSED)
       is_child_of_current_thread = true;
       break;
     }
-    iter = list_next(&iter);
+    iter = list_next(iter);
   }
 }
 if(!is_child_of_current_thread)
@@ -147,7 +155,6 @@ if(!is_child_of_current_thread)
   //remove child from parent list
   list_remove(&child->childs_thread_elem);
   //make parent sleep
-  //thread_unblock(child);
   sema_up(&thread_current()->child_parent_sync);
   sema_down(&thread_current()->parent_child_sync);
   }
@@ -462,7 +469,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   thread_current()->open_file=file;
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  // file_close (file);
 
   return success;
 }

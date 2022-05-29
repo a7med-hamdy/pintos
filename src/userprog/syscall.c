@@ -53,7 +53,7 @@ syscall_handler (struct intr_frame *f UNUSED)
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
-    
+
     case SYS_HALT:
     {
       shutdown_power_off();
@@ -394,6 +394,7 @@ void exit(int status)
     lock_release(&lock);    
     iter = list_next(iter);
   }
+  file_close(thread_current()->open_file);
   printf ("%s: exit(%d)\n",thread_current()->name, thread_current()->exit_status);
   thread_exit();
 }
