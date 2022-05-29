@@ -42,7 +42,7 @@ process_execute (const char *file_name)
   char * save_ptr;
   char* exec_name = strtok_r(file_name," ",&save_ptr);
   /* Create a new thread to execute FILE_NAME. */
-  //printf("file name got her= %s \n",exec_name);
+
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
   /*changed the places because if thread_create failed to create the thread the
@@ -52,11 +52,12 @@ process_execute (const char *file_name)
   sema_down(&thread_current()->parent_child_sync);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
-  
+  printf("file name got her= %s \n",exec_name);
   //  sema_down(&thread_current()->parent_child_sync);  
     
-  if(thread_current()->status_child==0)
-    return -1;
+  if(thread_current()->create_success==false)
+    return TID_ERROR;
+
   return tid;
 }
 
@@ -84,7 +85,7 @@ start_process (void *file_name_)
   if (!success) {
     if(thread_current()->parent != NULL)
     {
-      thread_current()->parent->status_child = 0;
+      thread_current()->parent->create_success=false;
       sema_up(&thread_current()->parent->parent_child_sync);
     }
     thread_exit ();
@@ -93,7 +94,7 @@ start_process (void *file_name_)
   {
     //printf("waking up parent***********************************************************");
     list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
-    thread_current()->parent->status_child = 1;
+    thread_current()->parent->create_success=true;
     sema_up(&thread_current()->parent->parent_child_sync);
     /*intr_disable();
     thread_block();*/
@@ -313,7 +314,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
   //printf("file name after breake load= %s \n",fn_cp);
   file = filesys_open (fn_cp);
- 
+  //printf("file name laod= %s \n",fn_cp);
 
   if (file == NULL) 
     {

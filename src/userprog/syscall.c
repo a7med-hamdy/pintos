@@ -106,7 +106,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
-      validate_pointer(((int*)f->esp+2));
+      validate_pointer((void*)(*((int*)f->esp+2)));
       void * buffer = (void*)(*((int*)f->esp+2));
       validate_pointer(((int*)f->esp+3));
       unsigned size = *((unsigned*)f->esp+3);
@@ -141,7 +141,7 @@ syscall_handler (struct intr_frame *f UNUSED)
     {
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
-      validate_pointer(((int*)f->esp+2));
+      validate_pointer((void*)(*((int*)f->esp+2)));
       void * buffer = (void*)(*((int*)f->esp+2));
       validate_pointer(((int*)f->esp+3));
       unsigned size = *((unsigned*)f->esp+3);

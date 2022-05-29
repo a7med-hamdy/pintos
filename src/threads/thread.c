@@ -619,6 +619,7 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->locks);
   t->waiting_lock = NULL;
   t->fds = 2;
+  t->create_success=true;
   // advanced scheduler case
   if(thread_mlfqs)
   {

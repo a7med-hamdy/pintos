@@ -106,7 +106,7 @@ struct thread
    struct thread * parent;
    struct list child_threads;
    struct list_elem childs_thread_elem;
-   
+   bool create_success;
    struct file *open_file;
    int status_child;
    int exit_status;
