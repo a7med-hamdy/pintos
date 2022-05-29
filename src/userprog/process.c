@@ -124,13 +124,12 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  struct list chlidren = thread_current()->child_threads;
   //check if the thread is a child of the current thread
-  struct list_elem* iter = list_begin(&chlidren);
+  struct list_elem* iter = list_begin(&thread_current()->child_threads);
   bool is_child_of_current_thread = false;
   struct thread* child;
-  if(!list_empty(&chlidren)){
-  while(iter != list_end(&chlidren)){
+  if(!list_empty(&thread_current()->child_threads)){
+  while(iter != list_end(&thread_current()->child_threads)){
     child = list_entry(iter, struct thread, childs_thread_elem);
     if(child->tid == child_tid){
       is_child_of_current_thread = true;
@@ -142,7 +141,7 @@ process_wait (tid_t child_tid UNUSED)
 if(!is_child_of_current_thread)
   return -1;
 
-  if(!list_empty(&chlidren)){
+  if(!list_empty(&thread_current()->child_threads)){
   // make parent point to the child
   thread_current()->waiting_child = child;
   //remove child from parent list
