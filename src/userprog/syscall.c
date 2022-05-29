@@ -50,35 +50,28 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  //printf("system call \n");
   // check if the esp pointer is valid within user program space
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
     
     case SYS_HALT:
     {
-      //debug_backtrace_all();
       shutdown_power_off();
       break;
     }
 
     case SYS_EXIT:
     {
-      // printf("exit******************************");
       validate_pointer(((int*)f->esp+1));
       int status = *((int*)f->esp+1);
-      // process_exit();
       exit(status);
       break;
     }
     case SYS_EXEC:
     {
-        //printf("excu****************************** \n");
-        validate_pointer(((int*)f->esp+1));
-        //printf("char:%s \n",(char*)*((int*)f->esp+1));
-        //  const char* sent= (char*)f->esp+1;
-        //  printf("char:%s \n",sent);
-        f->eax = process_execute( (char*)*((int*)f->esp+1));
+        char* cmd = get_char_ptr(((int*)f->esp +1));
+        validate_pointer(cmd);
+        f->eax = process_execute(cmd);
         break;
     }
     case SYS_WAIT:
@@ -87,8 +80,8 @@ syscall_handler (struct intr_frame *f UNUSED)
 
     case SYS_OPEN:
     {
-      validate_pointer(((int*)f->esp+1));
       char* name = *(((int*)f->esp+1));
+      validate_pointer(name);
       lock_acquire(&lock);
       struct file *ptr = filesys_open(name);
       lock_release(&lock);
@@ -257,8 +250,8 @@ create(const char* file, unsigned initial_size){
 
 bool 
 create_wrapper(void* esp){
-  validate_pointer((int*)esp+1);
   const char* file = get_char_ptr((int*)esp+1);
+  validate_pointer(file);
   validate_pointer((int*)esp +2);
   unsigned size = get_int((int*)esp+2);
   return create(file,(unsigned)size);
@@ -329,8 +322,8 @@ remove(const char* file){
 
 bool 
 remove_wrapper(void* esp){
-  validate_pointer((int*) esp +1);
   char* file = get_char_ptr(((int*) esp +1));
+  validate_pointer(file);
   return remove(file);
 }
 

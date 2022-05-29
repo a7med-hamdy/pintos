@@ -135,7 +135,7 @@ process_wait (tid_t child_tid UNUSED)
       is_child_of_current_thread = true;
       break;
     }
-    iter = list_next(iter);
+    iter = list_next(&iter);
   }
 }
 if(!is_child_of_current_thread)
