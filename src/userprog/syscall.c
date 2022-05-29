@@ -103,6 +103,7 @@ syscall_handler (struct intr_frame *f UNUSED)
         file_struct-> fd = thread_current()->fds;
         file_struct-> file = ptr;
         list_push_back(&thread_current()->files,&file_struct->elem);
+        f->eax = thread_current()->fds;
         thread_current()->fds++;
         break;
       }

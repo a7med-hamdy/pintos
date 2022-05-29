@@ -618,7 +618,7 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->child_parent_sync, 0);
   list_init(&t->locks);
   t->waiting_lock = NULL;
-  
+  t->fds = 2;
   // advanced scheduler case
   if(thread_mlfqs)
   {
