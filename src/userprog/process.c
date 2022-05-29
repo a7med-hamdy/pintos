@@ -38,9 +38,8 @@ process_execute (const char *file_name)
   fn_copy = palloc_get_page (0);
    fn_copy2 = palloc_get_page (0);
   //printf("current %s + file_name %s\n",thread_current()->name,file_name);
-  if (fn_copy == NULL)
+  if (fn_copy == NULL || fn_copy2 == NULL)
     return TID_ERROR;
-
    //printf("passe error ************************************************\n");
   strlcpy (fn_copy, file_name, PGSIZE);
   strlcpy (fn_copy2, file_name, PGSIZE);
@@ -159,7 +158,6 @@ if(!is_child_of_current_thread)
   sema_down(&thread_current()->parent_child_sync);
   }
   //return child status
- 
   return thread_current()->status_child;
   
 }
@@ -177,6 +175,7 @@ process_exit (void)
     //cur->parent->waiting_child= NULL;
     sema_up(&cur->parent->parent_child_sync);
   }
+
   int size= list_size(&cur->parent->child_threads);
   for(int i = 0; i < size; i++){
        sema_up(&cur->parent_child_sync);

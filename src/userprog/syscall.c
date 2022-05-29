@@ -92,6 +92,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       else
       {
+      
         struct files* file_struct = (struct files*)malloc(sizeof(struct files));
         file_struct-> fd = thread_current()->fds;
         file_struct-> file = ptr;
@@ -100,10 +101,12 @@ syscall_handler (struct intr_frame *f UNUSED)
         thread_current()->fds++;
         break;
       }
+     
     }
 
     case SYS_WRITE:
     {
+      
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
       validate_pointer((void*)(*((int*)f->esp+2)));
@@ -379,7 +382,8 @@ void close_file(int fd)
   list_remove(&f->elem);
   lock_acquire(&lock);
   file_close(f->file);
-  lock_release(&lock); 
+  lock_release(&lock);
+  free(f); 
 }
 
 void exit(int status)
@@ -391,8 +395,9 @@ void exit(int status)
     struct files* t = list_entry(iter,struct files,  elem);
     lock_acquire(&lock);
     file_close(t->file);
-    lock_release(&lock);    
-    iter = list_next(iter);
+    lock_release(&lock);
+    iter = list_next(iter); 
+    free(t); 
   }
   file_close(thread_current()->open_file);
   printf ("%s: exit(%d)\n",thread_current()->name, thread_current()->exit_status);
