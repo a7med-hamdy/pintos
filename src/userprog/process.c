@@ -36,35 +36,34 @@ process_execute (const char *file_name)
      
   
   fn_copy = palloc_get_page (0);
-   fn_copy2 = palloc_get_page (0);
-  //printf("current %s + file_name %s\n",thread_current()->name,file_name);
+  fn_copy2 = palloc_get_page (0); // this is a second copy of the file_name o be prep
+
   if (fn_copy == NULL || fn_copy2 == NULL)
     return TID_ERROR;
-   //printf("passe error ************************************************\n");
+
   strlcpy (fn_copy, file_name, PGSIZE);
   strlcpy (fn_copy2, file_name, PGSIZE);
-   //printf("passe cpy ************************************************\n");
+
   char * save_ptr;
   char* exec_name = strtok_r(fn_copy2," ",&save_ptr);
-   //printf("passe token ************************************************\n");
   /* Create a new thread to execute FILE_NAME. */
   
   //printf("file name got her= %s \n",exec_name);
   tid = thread_create (exec_name, PRI_DEFAULT, start_process, fn_copy);
 
-  /*changed the places because if thread_create failed to create the thread the
-    current thread does not wait aimlessly on a non existent child
-    1- the parent thread already know the tid of the child
+  /*
+    make the parent wait till child finish process start
     */
   sema_down(&thread_current()->parent_child_sync);
-  if (tid == TID_ERROR)
+  if (tid == TID_ERROR){
     palloc_free_page (fn_copy); 
-  // printf("file name got her= %s \n",exec_name);
-  //  sema_down(&thread_current()->parent_child_sync);  
-    
+    palloc_free_page (fn_copy2); 
+  }
+
+
   if(thread_current()->create_success==false)
     return TID_ERROR;
-
+  
   return tid;
 }
 
@@ -85,8 +84,6 @@ start_process (void *file_name_)
   success = load (file_name, &if_.eip, &if_.esp);
 
 
-    /*push arguments in the child's stack*/
-   //hex_dump(if_.esp , if_.esp , PHYS_BASE - if_.esp ,true);
   /* If load failed, quit. */
   palloc_free_page (file_name);
   if (!success) {
@@ -99,12 +96,10 @@ start_process (void *file_name_)
   }
   if(thread_current()->parent != NULL)
   {
-    //printf("waking up parent***********************************************************");
+  
     list_push_back(&thread_current()->parent->child_threads, &thread_current()->childs_thread_elem);
     thread_current()->parent->create_success=true;
     sema_up(&thread_current()->parent->parent_child_sync);
-    /*intr_disable();
-    thread_block();*/
     sema_down(&thread_current()->parent->child_parent_sync);
   }
   /*add the next sema*/
@@ -156,8 +151,10 @@ if(!is_child_of_current_thread)
   //make parent sleep
   sema_up(&thread_current()->child_parent_sync);
   sema_down(&thread_current()->parent_child_sync);
+  child = NULL;
   }
   //return child status
+
   return thread_current()->status_child;
   
 }
@@ -172,7 +169,6 @@ process_exit (void)
   //wake parent up
   if(cur->parent != NULL && cur->tid==cur->parent->waiting_child->tid){
     cur->parent->status_child=cur->exit_status;
-    //cur->parent->waiting_child= NULL;
     sema_up(&cur->parent->parent_child_sync);
   }
 
@@ -180,9 +176,11 @@ process_exit (void)
   for(int i = 0; i < size; i++){
        sema_up(&cur->parent_child_sync);
   }
+  
   pd = cur->pagedir;
   if (pd != NULL) 
     {
+
       /* Correct ordering here is crucial.  We must set
          cur->pagedir to NULL before switching page directories,
          so that a timer interrupt can't switch back to the
@@ -306,21 +304,14 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
   /* Open executable file. */
 
-  /*char * fn_cp = malloc (strlen(file_name)+1);
-  strlcpy(fn_cp, file_name, strlen(file_name)+1);
-  
-  char * save_ptr;
-  fn_cp = strtok_r(fn_cp," ",&save_ptr);*/
   char * fn_cp = palloc_get_page (0);
 
   strlcpy(fn_cp, file_name, strlen(file_name)+1);
   char * save_ptr;
 
   fn_cp = strtok_r(fn_cp," ",&save_ptr);
-  //printf("file name after breake load= %s \n",fn_cp);
   file = filesys_open (fn_cp);
-  //printf("file name laod= %s \n",fn_cp);
-
+  
   if (file == NULL) 
     {
       printf ("load: %s: open failed\n", file_name);
@@ -405,10 +396,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   
  
-  /* string array that holds arguments parsed by the strok_r()*/
-  char* argumentStrings[24];
+  /* string that holds arguments parsed by the strok_r()*/
+  char* argumentString;
   /* array of pointers to the location of the argument strings parsed in stack */
-  int* argumentPointers[24];
+  int* argumentPointers[64];
   /*helper variables */
   char zeroChar = 0;// this has a byte size necessary to extend to 4 bytes
   int zeroInt = 0;// this is appended between each of the stack elements
@@ -418,13 +409,16 @@ load (const char *file_name, void (**eip) (void), void **esp)
   //parse string and get the arguments & save them in arguments string
   //push them into the stack while saving their pointers in argumentPointers
 
-  while((argumentStrings[k] = strtok_r(file_name," ", &file_name))){
-    *esp -= strlen(argumentStrings[k])+1;
+  while((argumentString = strtok_r(file_name," ", &file_name))){
+    *esp -= strlen(argumentString)+1;
    
-    memcpy(*esp,argumentStrings[k], strlen(argumentStrings[k])+1);
+    memcpy(*esp,argumentString, strlen(argumentString)+1);
 
     argumentPointers[k] = *esp;
     k++;
+    if(k>64)
+      goto done;
+    
   }
   //count of arguments
   int argumentCount = k;
@@ -467,9 +461,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
   file_deny_write(file);
   thread_current()->open_file=file;
  done:
-  /* We arrive here whether the load is successful or not. */
-  // file_close (file);
-
+  /* We arrive here whether the load is successful or not. */;
+  // colse file in case of failer
+  if(!success)
+   file_close(file);
   return success;
 }
 

@@ -32,19 +32,42 @@ Mariam Osman      19017274 <es-mariamosmann04@alexu.edu.eg>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+	 None
+
 ---- ALGORITHMS ----
 
 >> A2: Briefly describe how you implemented argument parsing.  How do
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+	there are 2 loops:
+		First used strtok_r() function provided by pintos in a while loop over delimiter space " " .
+	In each iteration: 
+		1- esp is subtracted by 'strlen(token)+1'
+		2-  token is copied to esp
+		3- the esp is assigned to the argumetnpointer[k]
+		4- number of argument is incremented (k)
+
+		After the first iteration we iterate to fill the rest of the last 4 bytes with zeros char and a 4 byte zero after that  (0 int).
+	second while loop we add argumetnpointer in reverse order to the stack   and in each iteration we decrement the esp by ‘size of(int)’ and 		adding the null pointer after the iteration at the end. The setup stack done in the load function so the statically create arrays will 	      		destroy its self after the load function returns.
+	
+	the setup stack done in the load function so the statically create arrays will destroy its self after the load function return
+
+	we make sure there is no overflow by make sure there is no more than 64 arguement+process number
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 
+	strtok_r() is thread safe allows for third parameter ‘char*’ to the save
+	the rest of the word in it after separation.
+
 >> A4: In Pintos, the kernel separates commands into a executable name
 >> and arguments.  In Unix-like systems, the shell does this
 >> separation.  Identify at least two advantages of the Unix approach.
+
+	UNIX approach protected the kernel from the user bad arguments passing to it.
+	make one less work for the kernal
 
                  SYSTEM CALLS
                  ============
@@ -55,14 +78,60 @@ Mariam Osman      19017274 <es-mariamosmann04@alexu.edu.eg>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 
+syscall.c :
+
+	struct lock lock : used to synchronize accessing files  between processes (threads).
+	struct files :  a struct to hold file pointer with the corresponding descriptor in the thread's list
+	struct files{
+		int fd;
+		struct list_elem elem;
+		struct file* file;
+	};
+thread.h:
+
+Added to struct thread:  
+
+	struct list files ---> List of files decriptors held by the thread
+	int fds ---> file descriptor counter for every thread.
+	struct file *open_file ---> a struct pointer to the file opened by the thread. 
+	struct list child_threads ---> list to carry the thread childes
+	struct list_elem childs_thread_elem ---> to be used in the child list of the parent thread of the current child
+	struct semaphore parent_child_sync ---> use to make the parent wait until child finish process start or during process wait
+	struct semaphore child_parent_sync ---> use to make the child wait until parent die or wait on him
+	struct thread * waiting_child ---> hold the current thread that Is waited on
+	struct thread * parent ---> hold the parent thread of the thread
+	bool create_success ---> use to make sure that the child thread created successfully 
+	int status_child ---> hold the exit state of the child thread
+	int exit_status ---> hold the exit status of the thread
+
+
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+
+	Each process has file descriptor counter (fd) that is initialized with a value of 2,
+	when the process starts. When a file is opened, the process sets the file’s fd value
+	to its current fd, and increments its fd by 1. File descriptors are unique within
+	a single process, the only unique file descriptors for Os are fd = 0 for reading from
+	console and fd = 1 for writing in console.
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+
+		Read system call pulls the arguements from the stack and validates them.
+	Then, it checks the file descriptor. if it equals 1 (STDOUT), it exits with
+	an error. if it equals 0, it reads from the STDIN using input_getc function.
+	Otherwise, it searches for the file using the descriptor. if not found it 
+	returns -1. Otherwise, the data is read from the file.
+	
+		Write system call pulls the arguements from the stack and validates them.  
+	Then, it checks the file descriptor. if it equals 0 (STDIN), it exits with
+	an error. if it equals 0, it writes to STDOUT using putbuf function.Otherwise, 
+	it searches for the file using the descriptor. if not found it returns -1. 
+	Otherwise, the data is read from the file.
+	
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -70,9 +139,29 @@ Mariam Osman      19017274 <es-mariamosmann04@alexu.edu.eg>
 >> (e.g. calls to pagedir_get_page()) that might result?  What about
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
+	
+		for 4096 bytes, the max number of inspections are 4096 inspection for
+	each byte of data (the minimum arg size). the mimimum number of inspections
+	is only one, assuming one string arg that takes the whole page.
+	
+		for 2 bytes, the max number is 2 inspections. one for each arguement of
+	size 1. and the min number is 1 inspection for an arguemnet of size 2 bytes.
+	
+	we don't think that there is a room for improvement. 
+
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+
+		We first check whether the parent is expecting a child of its own, and
+	if it isn't, we return -1. The parent is then put to sleep, the child is removed
+	from the parent list, and the parent is woken up when the child terminates
+	and return the child exit status.
+	
+		To interact with process termination, each process has a pointer to its parent
+	and a semaphore for parent_child_sync. when wait is called, the parent is made to sleep
+	by sema down this semaphore. When the child terminates, the parent is retrieved through
+	the pointer then it wakes up by sema_up its semaphore.
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -88,12 +177,32 @@ Mariam Osman      19017274 <es-mariamosmann04@alexu.edu.eg>
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
 
+		Every pointer pulled from the stack is validated using validate_pointer function
+	which does some tests on the pointer to determine if it is bad or not. the first test
+	is checking if the pointer has a null value. the second checks that the pointer is 
+	within the userspace, and the third one checks if the pointer is mapped from virtual
+	to kernel address in the page.
+	
+		If the pointer fails to pass any of the checks, the exit function gets called 
+	where all the file descriptors held by the process gets closed and thread_exit
+	gets called to kill the thread. At last, process_exit wakes up the children and the
+	parent then deallocates the process's page. It is worth to mention that the process
+	of exit happens to all the processes whether it exits with an error or not. 
+
 ---- SYNCHRONIZATION ----
 
 >> B7: The "exec" system call returns -1 if loading the new executable
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+
+		every thread is created with a semaphore (initialized with 0) and Boolean variable.
+	After the parent thread creates the child it sema_down itself in this semaphore until the
+	child thread finishes process start and sema_up the parent its up in the start process the
+	child sets the Boolean variable of its parent to true or false based on states success Boolean. 
+	After the parent wakes up it checks the child create success through the Boolean variable set
+	by its child return -1 If it false and the tid of the created thread if true.
+
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -102,16 +211,52 @@ Mariam Osman      19017274 <es-mariamosmann04@alexu.edu.eg>
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
 
+	all sleep/wake in this answer is referred to the call sema_down()/sema_up() respectively
+
+	   After the thread_create() is invoked creates the child procees, the parent
+	sleeps and waits for the child to finish setting up its stack of arguments, on sucess/
+	failure the child wakes up its parent, if its creation failed it will exit, else it will
+	sleep to wait for its parent to wake it up, when the parent wakes up, it invokes wait()
+	before the parent waits, it points to the child that it will wait on and wakes it up, and
+	goes itself to sleep, when the child calls process_exit() it wakes up its parent and exits.
+    
+        for freeing resources both parents and children either set their pointers to null when exiting
+    and any allocated resource is statically free'd when the function call ends.
+
+    - if parent exits without waiting it also nullifies its pointers and the child runs normally
+    since it checks if it has a parent or not before going to sleep this solution applies to both
+    cases mentioned above(before & after).
+    
+    - there are no special cases that could be found to counter example.
+
+
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 
+		Because validating a pointer before using them is much more direct for returning an error
+	when an invalid pointer is encountered and exit immediately but page fault has no way to return
+	error from invalid memory access.
+
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
+		
+		the design for file descirptors is very simple. each process holds
+	a list for the opened files, and file operations preform list operations
+	on the list like search, insert, and remove
+	
+		disadvantages for the design may appear of the number of opened files
+	by a process is huge. a linear operation like search may get very slow. so,
+	an improvement can be made by keeping the list sorted by file descriptors and
+	introducing binary search. 
 
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+
+		the mapping didn't change which kept the design as they can be castes
+	interchangeably. we don't see an advantage in changing this implementations
+	as it will make things more complex.
 
                SURVEY QUESTIONS
                ================

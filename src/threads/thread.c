@@ -131,7 +131,6 @@ void
 thread_tick (void) 
 {
   struct thread *t = thread_current ();
-  // printf("running thread: %s\n", t->name);
   /* Update statistics. */
   if (t == idle_thread)
     idle_ticks++;
@@ -283,12 +282,7 @@ thread_create (const char *name, int priority,
 
   /* Add to run queue. */
   thread_unblock (t);
-  /////////////////////////////////////////////////
-  /*if the new priority is higher
-    than the newly created thread's priority*/
- /*if(thread_current()->priority < t->priority)
-     thread_yield();//yield the CPU*/
-  //////////////////////////////////////////////////
+
 
   return tid;
 }
@@ -611,7 +605,6 @@ init_thread (struct thread *t, const char *name, int priority)
   t->status = THREAD_BLOCKED;
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
-
    list_init(&t->files);
   list_init(&t->child_threads);
   sema_init(&t->parent_child_sync, 0);
