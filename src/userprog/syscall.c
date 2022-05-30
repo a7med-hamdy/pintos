@@ -27,17 +27,20 @@ bool remove_wrapper(void* esp);
 int wait_wrapper(void* esp);
 unsigned tell_wrapper(void* esp);
 void seek_wrapper(void* esp);
-
-
-struct lock lock;
+struct files* get_file(struct list*, int);
 void exit(int);
 
+// lock to synchronize files' operations
+struct lock lock;
+
+// a struct to hold file pointer with the corresponding
+// descriptor in the thread's list
 struct files{
     int fd;
     struct list_elem elem;
     struct file* file;
 };
-struct files* get_file(struct list*, int);
+
 
 void
 syscall_init (void) 
@@ -50,41 +53,48 @@ syscall_init (void)
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-  // check if the esp pointer is valid within user program space
+  // validate the esp pointer (top of the stack pointer)
   validate_pointer(f->esp);
   switch(*(int*)f->esp){
-
+    //halt system call
     case SYS_HALT:
     {
       shutdown_power_off();
       break;
     }
-
+    // exit system call
     case SYS_EXIT:
     {
+      //pull exit status from the stack and validate it
       validate_pointer(((int*)f->esp+1));
       int status = *((int*)f->esp+1);
+      // preform the exit operation
       exit(status);
       break;
     }
+    // exec system call
     case SYS_EXEC:
     {
-        char* cmd = get_char_ptr(((int*)f->esp +1));
-        validate_pointer(cmd);
-        f->eax = process_execute(cmd);
-        break;
+      //pull the command from the stack and validate it
+      char* cmd = get_char_ptr(((int*)f->esp +1));
+      validate_pointer(cmd);
+      // execute the command
+      f->eax = process_execute(cmd);
+      break;
     }
     case SYS_WAIT:
       f->eax = wait_wrapper(f->esp);
       break;
-
+    // open system call
     case SYS_OPEN:
     {
+      // pull the file's name from the stack and validate it
       char* name = *(((int*)f->esp+1));
       validate_pointer(name);
       lock_acquire(&lock);
       struct file *ptr = filesys_open(name);
       lock_release(&lock);
+      // if file not found return -1
       if(ptr == NULL)
       {
         f->eax = -1;
@@ -92,7 +102,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       else
       {
-      
+        //add the file to the thread's list and assign it a descriptor
         struct files* file_struct = (struct files*)malloc(sizeof(struct files));
         file_struct-> fd = thread_current()->fds;
         file_struct-> file = ptr;
@@ -103,22 +113,22 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
      
     }
-
+    // write system call
     case SYS_WRITE:
     {
-      
+      // pull arguement from the stack and validate them
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
       validate_pointer((void*)(*((int*)f->esp+2)));
       void * buffer = (void*)(*((int*)f->esp+2));
       validate_pointer(((int*)f->esp+3));
       unsigned size = *((unsigned*)f->esp+3);
-      // writing to STDIN
+      // writing to STDIN (illegal)
       if(fd == 0)
       {
         exit(-1);
       }
-      // writing to STDOUT
+      // writing to STDOUT 
       else if(fd == 1)
       {
         putbuf(buffer, size);
@@ -140,15 +150,17 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     }
+    //read system call
     case SYS_READ:
     {
+      // pull arguements from the stack and validate them
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
       validate_pointer((void*)(*((int*)f->esp+2)));
       void * buffer = (void*)(*((int*)f->esp+2));
       validate_pointer(((int*)f->esp+3));
       unsigned size = *((unsigned*)f->esp+3);
-      // reading from STDOUT
+      // reading from STDOUT (illegal)
       if(fd == 1)
       {
         exit(-1);
@@ -159,13 +171,17 @@ syscall_handler (struct intr_frame *f UNUSED)
         buffer = input_getc();
         f->eax = (int)size;
       }
+      // reading from file
       else
       {
+        // get the file with the given descriptor
         struct files* ptr = get_file(&thread_current()->files, fd);
+        // if not found return -1
         if(ptr == NULL)
         {
           f->eax = -1;
         }
+        // preform the read operation
         else
         {
           lock_acquire(&lock);
@@ -175,16 +191,20 @@ syscall_handler (struct intr_frame *f UNUSED)
       }
       break;
     }
-
+    // file size system call
     case SYS_FILESIZE:
     {
+      // validate the pointer first
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
+      // get the file with the given descriptor
       struct files* ptr = get_file(&thread_current()->files, fd);
+      // if not found return -1
       if(ptr == NULL)
       {
         f->eax = -1;
       }
+      // return the files's size
       else
       {
         lock_acquire(&lock);
@@ -207,17 +227,19 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_TELL:
       f->eax = tell_wrapper(f->esp);
       break;
-
+    // close system call
     case SYS_CLOSE:
     {
+      // validate the pointer
       validate_pointer(((int*)f->esp+1));
       int fd = *(((int*)f->esp+1));
+      // preform the close operation
       close_file(fd);
     }
 
   }
 }
-
+// a function that validates the given pointer
 void validate_pointer(void * p)
 {
   // check if the pointer is null
@@ -230,7 +252,7 @@ void validate_pointer(void * p)
   {
     exit(-1);
   }
-  // check if the pointer within the process's page
+  // checks if the pointer is mapped from virtualto kernel address in the page
   // this function is used instead of lookup_page as it is static
   else if(pagedir_get_page(thread_current()->pagedir, p) == NULL)
   {
@@ -358,7 +380,8 @@ void* get_void_ptr(int* esp){
   return (void*) *esp;
 }
 
-
+// a function that searches for the descriptor in the given list
+// if not found returns null
 struct files* get_file(struct list* list, int fd)
 {
   struct list_elem* iter = list_begin(list);
@@ -375,10 +398,12 @@ struct files* get_file(struct list* list, int fd)
   }
   return temp;
 }
-
+// a function that closes a file with the given descriptor
 void close_file(int fd)
 {
+  // get the files
   struct files *f = get_file(&thread_current()->files, fd);
+  // close it and free the resource
   list_remove(&f->elem);
   lock_acquire(&lock);
   file_close(f->file);
@@ -386,9 +411,11 @@ void close_file(int fd)
   free(f); 
 }
 
+// a function that preforms the exit system call
 void exit(int status)
 {
   thread_current()->exit_status = status;
+  // close all the open files and free the resuorces
   struct list_elem* iter = list_begin(&thread_current()->files);
   while(iter != list_end(&thread_current()->files))
   {
@@ -399,6 +426,7 @@ void exit(int status)
     iter = list_next(iter); 
     free(t); 
   }
+  // close the executable files
   file_close(thread_current()->open_file);
   printf ("%s: exit(%d)\n",thread_current()->name, thread_current()->exit_status);
   thread_exit();
