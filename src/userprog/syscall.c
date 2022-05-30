@@ -263,16 +263,14 @@ void validate_pointer(void * p)
 
 bool 
 create(const char* file, unsigned initial_size){
-   // printf("got herer 1\n");
+
   lock_acquire(&lock);
-   // printf("got herer 2,%s, %d \n",file ,initial_size);
   bool is_created = filesys_create(file, initial_size);
-   // printf("got herer 3\n");
   lock_release(&lock);
- //printf("got herer 4\n");
   return is_created;
 }
 
+// wrapper for validating pointer and craeting file,
 bool 
 create_wrapper(void* esp){
   const char* file = get_char_ptr((int*)esp+1);
@@ -301,6 +299,7 @@ seek(int fd, unsigned position){
   }
 }
 
+// wrapper for validating pointer then call seek.
 void 
 seek_wrapper(void* esp){
   validate_pointer((int*)esp+1);
@@ -328,6 +327,7 @@ tell(int fd){
   }
 }
 
+// wrapper to validate pointer and call tell.
 unsigned 
 tell_wrapper(void* esp){
   validate_pointer((int*)esp + 1);
@@ -344,7 +344,7 @@ remove(const char* file){
   return is_removed;
 }
 
-
+// wrapper to validate pointer and remove a file.
 bool 
 remove_wrapper(void* esp){
   char* file = get_char_ptr(((int*) esp +1));
@@ -357,6 +357,7 @@ int
  wait(tid_t pid){
   return process_wait(pid);
 }
+// wrapper to validate pointer and wait for a process.
 int 
 wait_wrapper(void* esp){
   validate_pointer((int*)esp +1);
